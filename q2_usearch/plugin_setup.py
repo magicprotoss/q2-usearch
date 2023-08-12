@@ -9,7 +9,7 @@ from qiime2.plugin import Citations, Plugin, Int, Range, Str, Choices, Float, Bo
 from q2_types.feature_data import FeatureData, Sequence, Taxonomy
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.sample_data import SampleData
-from q2_types.per_sample_sequences import SequencesWithQuality, Sequences
+from q2_types.per_sample_sequences import SequencesWithQuality, Sequences, JoinedSequencesWithQuality
 
 from q2_usearch._format import USEARCHFastaFmt, USEARCHFastQFmt, USEARCHFastaDirFmt, USEARCHFastQDirFmt
 from q2_usearch._type import PooledSampleData, PooledSequencesWithQuality, PooledSequences
@@ -92,7 +92,8 @@ plugin.methods.register_function(
         'This is turned off by default '
         'As you do not need seqs annotations to run usearch. '
     },
-    inputs={'demultiplexed_sequences': SampleData[SequencesWithQuality]},
+    inputs={
+        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
         'demultiplexed_sequences': 'Quality screened, Adapter stripped, Length trimmed(single-end), Joined(paired-end) sequences.'},
     outputs=[('merged_sequences', PooledSampleData[PooledSequencesWithQuality])],
