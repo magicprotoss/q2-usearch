@@ -12,6 +12,7 @@ from q2_types.per_sample_sequences import SingleLanePerSampleSingleEndFastqDirFm
 from ._format import USEARCHFastQFmt
 from glob import glob
 import gzip
+import pandas as pd
 
 
 def run_command(cmd, verbose=True):
@@ -25,6 +26,7 @@ def run_command(cmd, verbose=True):
         print(" ".join(cmd), end='\n\n')
         subprocess.run(cmd, check=True)
 
+
 def _pool_samples(demultiplexed_sequences, keep_annotations):
     merged_sequences = USEARCHFastQFmt()
     merged_sequences_fp = str(merged_sequences)
@@ -32,14 +34,26 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
     glob_gz_path = demultiplexed_sequences_dir_path + "/*.gz"
     # Create temp dir for usearch to work around
     with tempfile.TemporaryDirectory() as working_dir:
-        
+
         glob_fq_path = working_dir + "/*.fastq"
-        
+
+        # Need to further imporve by writing usearch idnetifier exception
+        manifest_fp = demultiplexed_sequences_dir_path + "/MANIFEST"
+        manifest_df = pd.read_csv(manifest_fp)
+        mapping = manifest_df.iloc[:, 0:2]
+        id_map = pd.DataFrame()
+        id_map[['id', 'fn']] = mapping
+        id_map['old_id'] = id_map['fn'].str.split(".", expand=True)[0]
+        id_map.drop(['fn'], axis=1, inplace=True)
+
         # unzip all samples
         print("unzipping all samples...")
 
         for zipped_seqs in glob(glob_gz_path):
-            file_name = zipped_seqs.split("/")[-1].split(".")[0] + ".fastq"
+            zipped_fn = zipped_seqs.split("/")[-1].split(".")[0]
+            fn = id_map.loc[id_map['old_id'] ==
+                            zipped_fn].reset_index().at[0, 'id']
+            file_name = fn + ".fastq"
             with gzip.open(zipped_seqs, "rb") as unzipped_seqs:
                 with open(working_dir + "/" + file_name, "wb") as wf:
                     wf.write(unzipped_seqs.read())
@@ -49,12 +63,14 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
 
         for seq_fp in glob(glob_fq_path):
             seq_file_name = seq_fp.split("/")[-1]
-            relabeled_seq_file_name = seq_file_name.split(".")[0] + ".relabeled"
+            relabeled_seq_file_name = seq_file_name.split(".")[
+                0] + ".relabeled"
             seq_labels = seq_file_name + "."
 
             relabeled_seq_fp = working_dir + "/" + relabeled_seq_file_name
-            
-            relabel_cmd = ["usearch", "-fastx_relabel", seq_fp, "-prefix", seq_labels, "-fastqout", relabeled_seq_fp]
+
+            relabel_cmd = ["usearch", "-fastx_relabel", seq_fp,
+                           "-prefix", seq_labels, "-fastqout", relabeled_seq_fp]
 
             if keep_annotations == True:
                 relabel_cmd += ["-keep_annots"]
@@ -74,10 +90,9 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
                 with open(seqs, "rb") as seqs_in:
                     merged_seqs.write(seqs_in.read())
 
-        
     return merged_sequences
 
 
 def pool_samples(demultiplexed_sequences: SingleLanePerSampleSingleEndFastqDirFmt,
-                 keep_annotations : bool = False) -> USEARCHFastQFmt:
-    return _pool_samples(demultiplexed_sequences = demultiplexed_sequences, keep_annotations = keep_annotations)
+                 keep_annotations: bool = False) -> USEARCHFastQFmt:
+    return _pool_samples(demultiplexed_sequences=demultiplexed_sequences, keep_annotations=keep_annotations)
