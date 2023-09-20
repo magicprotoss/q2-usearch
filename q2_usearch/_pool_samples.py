@@ -13,6 +13,7 @@ from ._format import USEARCHFastQFmt
 from glob import glob
 import gzip
 import pandas as pd
+import csv
 
 
 def run_command(cmd, verbose=True):
@@ -39,7 +40,10 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
 
         # Need to further imporve by writing usearch idnetifier exception
         manifest_fp = demultiplexed_sequences_dir_path + "/MANIFEST"
-        manifest_df = pd.read_csv(manifest_fp)
+        # Fix from stack overflow, it seemed early versions of qiime2 use csv for MANIFEST file
+        with open(manifest_fp) as fp:
+            delimiter = csv.Sniffer().sniff(fp.read(5000)).delimiter
+        manifest_df = pd.read_csv(manifest_fp, sep=delimiter)
         mapping = manifest_df.iloc[:, 0:2]
         id_map = pd.DataFrame()
         id_map[['id', 'fn']] = mapping
@@ -52,7 +56,7 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
         for zipped_seqs in glob(glob_gz_path):
             zipped_fn = zipped_seqs.split("/")[-1].split(".")[0]
             fn = id_map.loc[id_map['old_id'] ==
-                            zipped_fn].reset_index().at[0, 'id']
+                            zipped_fn, 'id'].ravel()[0]
             file_name = fn + ".fastq"
             with gzip.open(zipped_seqs, "rb") as unzipped_seqs:
                 with open(working_dir + "/" + file_name, "wb") as wf:
