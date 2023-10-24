@@ -67,14 +67,14 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
 
         for seq_fp in glob(glob_fq_path):
             seq_file_name = seq_fp.split("/")[-1]
-            relabeled_seq_file_name = seq_file_name.split(".")[
-                0] + ".relabeled"
-            seq_labels = seq_file_name + "."
+            seq_id = seq_file_name.split(".")[
+                0]
+            seq_label = seq_id + "."
 
-            relabeled_seq_fp = working_dir + "/" + relabeled_seq_file_name
+            relabeled_seq_fp = working_dir + "/" + seq_id + "relabeled"
 
             relabel_cmd = ["usearch", "-fastx_relabel", seq_fp,
-                           "-prefix", seq_labels, "-fastqout", relabeled_seq_fp]
+                           "-prefix", seq_label, "-fastqout", relabeled_seq_fp]
 
             if keep_annotations == True:
                 relabel_cmd += ["-keep_annots"]

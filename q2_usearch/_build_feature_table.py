@@ -81,6 +81,11 @@ def _build_feature_table(merged_sequences,
         with open(tsv_feature_tab_fp) as tsv_tab_file:
             feature_table = biom.Table.from_tsv(tsv_tab_file, None, None, None)
 
+            # Double Check if all features in rep-seqs appear in biom table
+            feature_tab_index = feature_table.to_dataframe().index.to_list()
+            if len(id_lst) != len(feature_tab_index):
+                print("Warning !!! Missing features in feature tab !!!")
+
             # Fix feature table ids
             feature_table = feature_table.sort_order(
                 id_lst, axis="observation")
