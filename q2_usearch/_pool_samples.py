@@ -11,6 +11,7 @@ import tempfile
 from q2_types.per_sample_sequences import SingleLanePerSampleSingleEndFastqDirFmt
 from ._format import USEARCHFastQFmt
 from glob import glob
+import shutil
 import gzip
 import pandas as pd
 import csv
@@ -32,67 +33,37 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
     merged_sequences = USEARCHFastQFmt()
     merged_sequences_fp = str(merged_sequences)
     demultiplexed_sequences_dir_path = str(demultiplexed_sequences)
-    glob_gz_path = demultiplexed_sequences_dir_path + "/*.gz"
     # Create temp dir for usearch to work around
     with tempfile.TemporaryDirectory() as working_dir:
-
-        glob_fq_path = working_dir + "/*.fastq"
 
         # Need to further imporve by writing usearch idnetifier exception
         manifest_fp = demultiplexed_sequences_dir_path + "/MANIFEST"
         # Fix from stack overflow, it seemed early versions of qiime2 use csv for MANIFEST file
-        with open(manifest_fp) as fp:
-            delimiter = csv.Sniffer().sniff(fp.read(5000)).delimiter
-        manifest_df = pd.read_csv(manifest_fp, sep=delimiter)
+        manifest_df = pd.read_csv(manifest_fp, sep=None)
         mapping = manifest_df.iloc[:, 0:2]
         id_map = pd.DataFrame()
         id_map[['id', 'fn']] = mapping
-        id_map['old_id'] = id_map['fn'].str.split(".", expand=True)[0]
-        id_map.drop(['fn'], axis=1, inplace=True)
 
-        # unzip all samples
+        # unzip and relabel all samples
         print("unzipping all samples...")
 
-        for zipped_seqs in glob(glob_gz_path):
-            zipped_fn = zipped_seqs.split("/")[-1].split(".")[0]
-            fn = id_map.loc[id_map['old_id'] ==
-                            zipped_fn, 'id'].ravel()[0]
-            file_name = fn + ".fastq"
-            with gzip.open(zipped_seqs, "rb") as unzipped_seqs:
-                with open(working_dir + "/" + file_name, "wb") as wf:
-                    wf.write(unzipped_seqs.read())
-
-        # Fix sample labels
-        print("Fixing sample labels...")
-
-        for seq_fp in glob(glob_fq_path):
-            seq_file_name = seq_fp.split("/")[-1]
-            seq_id = seq_file_name.split(".")[
-                0]
-            seq_label = seq_id + "."
-
-            relabeled_seq_fp = working_dir + "/" + seq_id + "relabeled"
-
-            relabel_cmd = ["usearch", "-fastx_relabel", seq_fp,
-                           "-prefix", seq_label, "-fastqout", relabeled_seq_fp]
-
-            if keep_annotations == True:
-                relabel_cmd += ["-keep_annots"]
-
-            del_original_cmd = ["rm", "-f", seq_fp]
-
-            run_command(relabel_cmd)
-            run_command(del_original_cmd)
-
-        glob_relabeled_path = working_dir + "/*.relabeled"
-
-        # merge all samples
-        print("Now merging all samples...")
-
-        with open(merged_sequences_fp, "wb") as merged_seqs:
-            for seqs in glob(glob_relabeled_path):
-                with open(seqs, "rb") as seqs_in:
-                    merged_seqs.write(seqs_in.read())
+        for index, row in id_map.iterrows():
+            fp = demultiplexed_sequences_dir_path + "/" + str(row['fn'])
+            prefix = str(row['id']) + "."
+            with gzip.open(fp, "rb") as unzipped_seqs:
+                with tempfile.NamedTemporaryFile() as rf:
+                    rf.write(unzipped_seqs.read())
+                    rf.flush()  # flush the data to disk
+                    with tempfile.NamedTemporaryFile() as wf:
+                        relabel_cmd = ['usearch', '-fastx_relabel',
+                                       rf.name, '-prefix', prefix, '-fastqout', wf.name]
+                        if keep_annotations == True:
+                            relabel_cmd += ["-keep_annots"]
+                        run_command(relabel_cmd)
+                        wf.flush()  # flush the data to disk
+                        with open(merged_sequences_fp, "ab") as merged_seqs:
+                            merged_seqs.write(wf.read())
+                            merged_seqs.flush()
 
     return merged_sequences
 
