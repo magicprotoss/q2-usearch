@@ -19,15 +19,25 @@ from qiime2.plugin import plugin
 from q2_usearch import __version__
 import q2_usearch
 
+# Register Usearch stats fmt
+from q2_usearch._format import USEARCHStats, USEARCHStatsFormat, USEARCHStatsDirFmt
+
 citations = Citations.load("citations.bib", package="q2_usearch")
 
 plugin = Plugin(
     name="usearch",
     version=__version__,
-    website="https://github.com/bokulich-lab/q2-plugin-name",
+    website="https://github.com/magicprotoss/q2-usearch",
     package="q2_usearch",
-    description="This is a template for building a new QIIME 2 plugin.",
-    short_description="",
+    description="This QIIME 2 plugin wraps USEARCH and supports: "
+                "1. Paired-end reads merging "
+                "2. Denoise illumina reads with unoise3 "
+                "3. De novo OTU cluster with uparse3 "
+                "4. De novo ZOTU cluster with uclust after denoise with unoise3 "
+                "5. Classify representative sequences with SINTAX "
+                "6. Classify representative sequences with USEARCH's RDP classifier "
+                "7. Perform ePCR on raw reads for meta analysis",
+    short_description="Plugin for amplicon analysis with USEARCH. ",
 )
 
 plugin.methods.register_function(
@@ -206,6 +216,111 @@ plugin.methods.register_function(
         'classification': 'Taxonomy Classification via sintax.'}
 )
 
+####################
+# revised methods
+plugin.methods.register_function(
+    function=q2_usearch.denoise_no_primer_pooled,
+    parameters={
+        'trim_left': Int % Range(0, None),
+        'trunc_len': Int % Range(0, None),
+        'min_len': Int % Range(0, None),
+        'max_ee': Float % Range(0.0, None),
+        'min_size': Int % Range(1, None),
+        'unoise_alpha': Float % Range(0.0, None),
+        'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
+        'use_vsearch': Bool,
+    },
+    name="Pool and denoise valid-data.",
+    description='This Method Pools All Samples Together and Extracts Biological Reads Using the Unoise3 Algorithm ' +
+    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step ' +
+    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
+    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
+    'Using Vsearch as a drop-in Replcacement is supported But with some CAVEATS, see https://github/xxx for details. ',
+    citations=[citations['edgar2016unoise2']],
+    parameter_descriptions={
+        'trim_left': ("Position at which sequences should be trimmed due to low quality. "
+                      "This trims the 5' end of the of the input sequences, "
+                      "which will be the bases that were sequenced in the first cycles. "),
+        'trunc_len': ("Position at which sequences should be truncated due to decrease in quality. "
+                      "This truncates the 3' end of the of the input sequences, "
+                      "which will be the bases that were sequenced in the last cycles. "
+                      "Reads that are shorter than this value will be discarded. "
+                      "If 0 is provided, no truncation or length filtering will be performed"),
+        'min_len': 'Reads with less length than this number value will be discarded. ',
+        'max_ee': 'Reads with number of expected errors higher than this value will be discarded. ',
+        'min_size': ('The minimum abundance of input reads to be retained. '
+                    'For higher sensivity, reducing minsize to 4 is reasonable. '
+                    'Note: with smaller minsize, there tends to be more errors in low-abundance zotus. '),
+        'unoise_alpha': 'See UNOISE2 paper for definition',
+        'n_threads': ('The number of threads to use for computation. '
+                      'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
+        'use_vsearch': 'Use vsearch instead of usearch for computation . '
+    },
+    inputs={'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+    input_descriptions={'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+    outputs=[('table', FeatureTable[Frequency]),
+             ('representative_sequences', FeatureData[Sequence]),
+             ('denoising_stats', SampleData[USEARCHStats])],
+    output_descriptions={
+        'table': 'The resulting feature table.',
+        'representative_sequences': ('The resulting feature sequences. Each '
+                                     'feature in the feature table will be '
+                                     'represented by exactly one sequence. '),
+        'denoising_stats': 'DataFrame containing statistics during each step of the pipeline.'
+        }
+)
+
+
+plugin.methods.register_function(
+    function=q2_usearch.cluster_no_primer_pooled,
+    parameters={
+        'trim_left': Int % Range(0, None),
+        'trunc_len': Int % Range(0, None),
+        'min_len': Int % Range(0, None),
+        'max_ee': Float % Range(0.0, None),
+        'min_size': Int % Range(1, None),
+        'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
+    },
+    name="Pool and cluster valid-data at 97% identity.",
+    description='This Method Pools All Samples Together and Cluster Them into 97% OTUs using the Uparse Algorithm ' +
+    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step ' +
+    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
+    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
+    "Since Nowadays 97% OTUs are Considered Mostly OBSELETE and Uparse is Usearch Exclusive," +
+    "Using Vsearch as a drop-in Replcacement is Not Supported Here. ",
+    citations=[citations['edgar2013uparse']],
+    parameter_descriptions={
+        'trim_left': ("Position at which sequences should be trimmed due to low quality. "
+                      "This trims the 5' end of the of the input sequences, "
+                      "which will be the bases that were sequenced in the first cycles. "),
+        'trunc_len': ("Position at which sequences should be truncated due to decrease in quality. "
+                      "This truncates the 3' end of the of the input sequences, "
+                      "which will be the bases that were sequenced in the last cycles. "
+                      "Reads that are shorter than this value will be discarded. "
+                      "If 0 is provided, no truncation or length filtering will be performed"),
+        'min_len': 'Reads with less length than this number value will be discarded. ',
+        'max_ee': 'Reads with number of expected errors higher than this value will be discarded. ',
+        'min_size': ('The minimum abundance of a given OTU to be retained. '
+                    'Default is 2, which means unique reads are discarded. '),
+        'n_threads': ('The number of threads to use for computation. '
+                      'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
+    },
+    inputs={'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+    input_descriptions={'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+    outputs=[('table', FeatureTable[Frequency]),
+             ('representative_sequences', FeatureData[Sequence]),
+             ('denoising_stats', SampleData[USEARCHStats])],
+    output_descriptions={
+        'table': 'The resulting feature table.',
+        'representative_sequences': ('The resulting feature sequences. Each '
+                                     'feature in the feature table will be '
+                                     'represented by exactly one sequence. '),
+        'denoising_stats': 'DataFrame containing statistics during each step of the pipeline.'
+        }
+)
+
+####################
+
 # reg pipelines
 plugin.pipelines.register_function(
     function=q2_usearch.lazy_process_clean_data,
@@ -272,3 +387,9 @@ plugin.register_artifact_class(
     description=("All samples merged into a single sequences.fasta file "
                  "Formatted with USEARCH compatibale Sample identifier.")
 )
+
+# Register Usearch stats fmt
+plugin.register_formats(USEARCHStatsFormat, USEARCHStatsDirFmt)
+plugin.register_semantic_types(USEARCHStats)
+plugin.register_semantic_type_to_format(
+    SampleData[USEARCHStats], USEARCHStatsDirFmt)

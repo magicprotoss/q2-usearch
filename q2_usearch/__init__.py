@@ -16,6 +16,9 @@ from ._sintax import sintax
 # from ._dereplication import dereplication
 from ._build_feature_table import build_feature_table
 
+# revised_method
+from ._illumina_pipeline import denoise_no_primer_pooled, cluster_no_primer_pooled
+
 # from ._format import (USEARCHFastaFmt, USEARCHFastQFmt, USEARCHFastaDirFmt, USEARCHFastQDirFmt)
 
 from ._version import get_versions
@@ -25,3 +28,6 @@ del get_versions
 
 __all__ = ['unoise3', 'uprase_otu', 'pool_samples', 'build_feature_table',
            'quality_control', 'dereplication', 'lazy_process_clean_data', 'sintax']
+           
+# revised_method
+__all__ += ['denoise_no_primer_pooled', 'cluster_no_primer_pooled']

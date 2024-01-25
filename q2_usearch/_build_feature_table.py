@@ -14,6 +14,7 @@ from glob import glob
 import biom
 import pandas as pd
 import hashlib
+import time
 
 
 def run_command(cmd, verbose=True):
@@ -76,15 +77,21 @@ def _build_feature_table(merged_sequences,
                       '-otutabout', tsv_feature_tab_fp,
                       '-threads', str(n_threads)]
         run_command(otutab_cmd)
+        time.sleep(1)
 
         # Convert feature tab from classic QIIME format to biom 2.1 format
         with open(tsv_feature_tab_fp) as tsv_tab_file:
             feature_table = biom.Table.from_tsv(tsv_tab_file, None, None, None)
 
             # Double Check if all features in rep-seqs appear in biom table
+            # It will happen ...
+            # Use a for loop for save
+            # add hased feature id later
             feature_tab_index = feature_table.to_dataframe().index.to_list()
-            if len(id_lst) != len(feature_tab_index):
-                print("Warning !!! Missing features in feature tab !!!")
+
+            for item in id_lst:
+                if item not in feature_tab_index:
+                    id_lst.remove(item)
 
             # Fix feature table ids
             feature_table = feature_table.sort_order(

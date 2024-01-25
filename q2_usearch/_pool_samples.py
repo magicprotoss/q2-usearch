@@ -26,7 +26,7 @@ def run_command(cmd, verbose=True):
               "no longer exist.")
         print("\nCommand:", end=' ')
         print(" ".join(cmd), end='\n\n')
-        subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True)
 
 
 def _pool_samples(demultiplexed_sequences, keep_annotations):
@@ -39,7 +39,7 @@ def _pool_samples(demultiplexed_sequences, keep_annotations):
         # Need to further imporve by writing usearch idnetifier exception
         manifest_fp = demultiplexed_sequences_dir_path + "/MANIFEST"
         # Fix from stack overflow, it seemed early versions of qiime2 use csv for MANIFEST file
-        manifest_df = pd.read_csv(manifest_fp, sep=None)
+        manifest_df = pd.read_csv(manifest_fp, comment='#', sep=None)
         mapping = manifest_df.iloc[:, 0:2]
         id_map = pd.DataFrame()
         id_map[['id', 'fn']] = mapping

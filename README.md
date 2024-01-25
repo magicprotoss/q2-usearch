@@ -1,53 +1,150 @@
-# q2-plugin-template
-A skeleton for QIIME 2 plugins.
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
 
-To use this template for a new plugin creation, you'll first need to create a new plugin repo by clicking the `Use this template` button.
-Fill out the new repository name and description. Following that initial setup, in your new plugin repo you still
-need to adjust the following elements:
+# q2-usearch
 
-- exchange `plugin_name` and `plugin-name` with the name of your plugin
-- adjust all the required fields in `setup.py` and `plugin_setup.py`
-- adjust the developer name in all the copyright headers and the license file
-- add `versioneer` support for version management:
-    - install `versioneer` [(link)](https://github.com/python-versioneer/python-versioneer) into any python environment: `pip install versioneer`
-    - from the project directory, run `versioneer install` to create/modify all the required files
-    - add the `# flake8: noqa` flag on top of the `versioneer.py` file for the file to be ignore by lint checks
+QIIME2 plug-in for [USEARCH](https://drive5.com/usearch/) intergeration
 
-Enjoy!
+## Introduction
 
-### Development using Dev Containers (Visual Studio Code)
-To streamline the plugin development process, you can use support for Docker containers built into
-VS Code in a form of __Dev Containers__ (see [here](https://code.visualstudio.com/docs/remote/containers) for more information).
-In this approach a Docker container will be created and configured (using the provided specification) and your VS Code environment
-will be attached to this container where you can continue developing as usual. You only need to specify which version of QIIME 2 you
-want to use (see below) and the respective Docker image will be pulled and used to create the container.
+For years, [USEARCH](https://drive5.com/usearch/) had been the go-to
+program for many researchers to process amplicon sequencing data
+(Including us🙈). We originally wrote this plug-in for internal use, now
+with [USEARCH](https://drive5.com/usearch/)'s conversion to open-source
+software on the horizon, we decided to publish this plug-in for the
+community
 
-The elements you need to use the QIIME 2 devcontainer are:
-- container spec located under [.devcontainer.json](.devcontainer.json) in your project directory
-- `requirements.txt` file listing all the project-specific conda dependencies that should be installed in the environment
-- `prep-dev-container` section in the [Makefile](Makefile)
+Here are the pipelines this plug-in (plan to) integrate into
+[QIIME2](https://qiime2.org/):
 
-The only parts that you should need to modify are the packages listed in the `requirements.txt` file. If you are setting up Dev Containers in an already existing repo you will need to copy the files/section listed above.
-Once you have your requirements ready follow those steps to get started:
-1. Install VS Code (if needed) and enable launch from command line (see [here](https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line) for macOS instructions).
-2. In your terminal, navigate to the repo you want to open in the devcontainer and execute:
-    ```shell
-    export QIIME_VERSION=2022.2 && code .
-    ```
-    Replace `2022.2` with the version of QIIME 2 that you would like to use.
-    While it is possible to open those containers without going through the terminal, it is required in our setup to define the desired QIIME version.
-3. When prompted, reopen the folder in a Dev Container by clicking on "Reopen in container".
-4. The Docker image will be pulled (happens only once per image) and the corresponding container will be created and configured - this may take a few minutes.
-5. Once container configuration is finished you should be good to go: you can start developing as usual. The conda environment in the container is already configured and should have your plugin installed inside.
+-   Denoise valid data into ZOTU table and ZOTUs using the uniose3
+    algorithm
+-   Cluster valid data into OTU table and OTUs at 97% identity
+    threshould using the uparse algorithm
+-   Denoise then cluster valid data into OTU table and OTUs at an
+    user-defined identity threshould using both the uniose3 and the
+    uclust algorithm
+-   Perform paired-end read merging and primer removal
+-   Classify FeatureData[Sequences] using sintax
+-   Classify FeatureData[Sequences] using USEAECH's implementation of
+    [RDP classifier](https://www.doi.org/10.1128/AEM.00062-07)
+-   Perform Electronic PCR on SampleData[SequencesWithQuality] or
+    SampleData[JoinedSequencesWithQuality]
 
-### Development with git hooks and setting up a dev environment
-To make your life a bit easier, you can use `git hooks` to automate certain tasks while working with Git (see [here](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) for more details).
-Here, we are making use of the `pre-commit` tool which allows us to configure all the hooks in [one place](.pre-commit-config.yaml).
-The pre-commit hook configured here will automatically run linting and formatting tasks before any commit (i.e. on `git commit`). In the configuration file
-you will see that the pre-push hook is commented-out - it is just more complicated to configure an environment for running that hook (given all the different
-conda dependencies that the plugin/QIIME 2 may have).
+Pipelines to add in future release:
 
-To set up your dev environment, including the hooks, simply run `make dev` in an existing conda environment - this will install all the required tooling.
-You don't need to do anything else - the hooks will be automatically executed whenever you commit.
+-   Perform merging(PE)➡️primer-removal➡️denoise/cluster on
+    demultiplexed raw NGS data in a single pipeline
 
-_Note:_ If, for whatever reason, you need to skip the hooks, you can append the `--no-verify` flag to the git command - the hooks won't be executed.
+-   Perform primer-removal➡️denoise(dada2)➡️cluster(uclust) on raw
+    PacBio CCS data in a single pipeline
+
+-   Find exact matches of FeatureData[Sequences] against a given
+    database using global search then classify unmatched reads using
+    sintax (similar to q2-feature-classifier's
+    classify-hybrid-vsearch-sklearn and dada2's assignTaxonomy()
+    followed by addSpecies())
+
+\*The plug-in is still in early development, thus is subject to
+interface changes
+
+## Installation
+
+Step 1: Clone this repository to your compute node
+
+Step 2: Activate the QIIME2 conda enviroment you wish to install to
+
+``` bash
+# conda activate qiime2-amplicon-2024.2
+conda activate <replace-with-your-q2-conda-env-name>
+```
+
+In case your don't know your q2 env's name, please run the following
+command
+
+``` bash
+conda env list | grep qiime2
+```
+
+The env's name should appear in your terminal
+
+``` bash
+# qiime2-amplicon-2024.2     /home/navi/miniconda3/envs/qiime2-amplicon-2024.2
+```
+
+Step 3: Change directory to the project folder and execute the following
+command
+
+``` bash
+cd q2-usearch && python ./setup.py install
+qiime dev refresh-cache
+cd ../ && rm -rf q2-usearch
+```
+
+Step 4: Install seqkit using mamba/conda
+
+``` bash
+mamba install seqkit">=2.0.0"
+# conda install seqkit">=2.0.0"
+```
+
+Step 5 (free users): [Download
+USEARCH](https://drive5.com/usearch/download.html)[(version11.0.667)](https://drive5.com/downloads/usearch11.0.667_i86linux32.gz),
+unzip and rename the executable to "usearch"
+
+``` bash
+wget https://drive5.com/downloads/usearch11.0.667_i86linux32.gz
+gunzip usearch11.0.667_i86linux32.gz && mv usearch11.0.667_i86linux32 usearch
+```
+
+Step 5 (64bit users): rename the
+executable[(version11.0.667)](https://drive5.com/downloads/usearch11.0.667_i86linux32.gz)
+to "usearch"
+
+Step 6: Move the executable to your system's executable binary path and
+add privilege to it
+
+``` bash
+# Install to the user
+sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
+# Install system-wide
+# sudo mv usearch /bin && sudo chmod +x /bin/usearch
+# Install to current qiime2's conda env
+mv usearch $(whereis qiime | sed 's/qiime//g')
+chmod +x $(whereis qiime | sed 's/qiime//g')"usearch"
+usearch --version
+```
+
+If every thing went smoothly, you should be seeing sth. like this
+printed on your terminal
+
+``` bash
+# usearch v11.0.667_i86linux64
+```
+
+## Tutorials
+
+### Before you start
+
+-   Working environment set-up
+
+-   To cluster or not to cluster🧐
+
+### Step-by-step guides on common sequencing protocols
+
+-   Valid data from illumina sequencing
+
+-   Single-end raw data from illumina sequencing
+
+-   Paired-end raw data from illumina sequencing
+
+-   Raw pacbio ccs data
+
+-   Valid pacbio ccs data
+
+Let me know if you have any questions😉
+
+Happy QIIMEing 🎉🎉🎉

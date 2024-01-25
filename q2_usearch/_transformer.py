@@ -34,4 +34,17 @@ def _3(data: USEARCHFastQDirFmt) -> USEARCHFastQFmt:
         data.write(fh)
     return ff
 
+# Register Usearch stats fmt
+from q2_usearch._format import USEARCHStatsFormat
+
+@plugin.register_transformer
+def _4(ff: USEARCHStatsFormat) -> qiime2.Metadata:
+    return qiime2.Metadata.load(str(ff))
+
+
+@plugin.register_transformer
+def _5(obj: qiime2.Metadata) -> USEARCHStatsFormat:
+    ff = USEARCHStatsFormat()
+    obj.save(str(ff))
+    return ff
 
