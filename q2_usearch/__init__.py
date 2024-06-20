@@ -17,7 +17,10 @@ from ._sintax import sintax
 from ._build_feature_table import build_feature_table
 
 # revised_method
-from ._illumina_pipeline import denoise_no_primer_pooled, cluster_no_primer_pooled
+from ._illumina_pipeline import denoise_no_primer_pooled, cluster_no_primer_pooled, denoise_then_cluster_no_primer_pooled
+
+# modified from q2-vsearch
+from ._merge_pairs import merge_pairs
 
 # from ._format import (USEARCHFastaFmt, USEARCHFastQFmt, USEARCHFastaDirFmt, USEARCHFastQDirFmt)
 
@@ -30,4 +33,4 @@ __all__ = ['unoise3', 'uprase_otu', 'pool_samples', 'build_feature_table',
            'quality_control', 'dereplication', 'lazy_process_clean_data', 'sintax']
            
 # revised_method
-__all__ += ['denoise_no_primer_pooled', 'cluster_no_primer_pooled']
+__all__ += ['denoise_no_primer_pooled', 'cluster_no_primer_pooled', 'denoise_then_cluster_no_primer_pooled', 'merge_pairs']

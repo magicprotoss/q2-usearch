@@ -1,7 +1,5 @@
 # ----------------------------------------------------------------------------
 # This is a simple pulgin for usearch intergration in qiime2
-#
-# I hope Dr.Edgar won't get mad though...
 # ----------------------------------------------------------------------------
 
 import qiime2

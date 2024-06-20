@@ -14,8 +14,7 @@ For years, [USEARCH](https://drive5.com/usearch/) had been the go-to
 program for many researchers to process amplicon sequencing data
 (Including us🙈). We originally wrote this plug-in for internal use, now
 with [USEARCH](https://drive5.com/usearch/)'s conversion to open-source
-software on the horizon, we decided to publish this plug-in for the
-community
+software, we decided to publish this plug-in for the community
 
 Here are the pipelines this plug-in (plan to) integrate into
 [QIIME2](https://qiime2.org/):
@@ -27,12 +26,14 @@ Here are the pipelines this plug-in (plan to) integrate into
 -   Denoise then cluster valid data into OTU table and OTUs at an
     user-defined identity threshould using both the uniose3 and the
     uclust algorithm
--   Perform paired-end read merging and primer removal
--   Classify FeatureData[Sequences] using sintax
--   Classify FeatureData[Sequences] using USEAECH's implementation of
-    [RDP classifier](https://www.doi.org/10.1128/AEM.00062-07)
--   Perform Electronic PCR on SampleData[SequencesWithQuality] or
-    SampleData[JoinedSequencesWithQuality]
+-   Perform paired-end read merging
+-   (to do) Remove primers on SampleData[JoinedSequencesWithQuality]
+-   (to do) Classify FeatureData[Sequences] using sintax
+-   (to do) Classify FeatureData[Sequences] using USEAECH's
+    implementation of [RDP
+    classifier](https://www.doi.org/10.1128/AEM.00062-07)
+-   (to do) Perform Electronic PCR on SampleData[SequencesWithQuality]
+    or SampleData[JoinedSequencesWithQuality]
 
 Pipelines to add in future release:
 

@@ -20,6 +20,7 @@ def run_command(cmd, verbose=True):
         print(" ".join(cmd), end='\n\n')
         subprocess.run(cmd, check=True)
 
+# a udb file as an optional input
 
 def sintax(query: DNAFASTAFormat,
            reference_reads: DNAFASTAFormat,
