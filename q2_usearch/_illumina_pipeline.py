@@ -1,7 +1,5 @@
 # ----------------------------------------------------------------------------
 # This is a simple pulgin for usearch intergration in qiime2
-#
-# I hope Dr.Edgar won't get mad though...
 # ----------------------------------------------------------------------------
 
 import qiime2
@@ -114,7 +112,7 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                 if use_vsearch:
                     dna_seqs_gen = skbio.io.registry.read(
                         gzip_reader, format="fastq", verify=True, variant=variant)
-                # skbio's fastq writer is way too slow, try to use usearch to relab the seqs if possible
+                # skbio's fastq writer is way too slow
                     i = 0
                     for seq in dna_seqs_gen:
                         i = i + 1
@@ -952,7 +950,7 @@ def cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
     verbose = True
     
     if verbose:
-        print("Since Usearch version 9.0.2132, the ability to directly cluster OTUs to custom identity threshould had been removed. ")
+        print("Since usearch version 9.0.2132, the ability to directly cluster OTUs to custom identity threshould had been removed. ")
         print("The reason for this is that indentity threshold other than 0.97 mess up the chimera detection step. ")
         print("Further expalnation can be found here: https://drive5.com/usearch/manual/uparse_otu_radius.html")
         print("BTW uparse is also usearch exclusive, no vsearch support here.")

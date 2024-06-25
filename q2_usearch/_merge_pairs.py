@@ -1,5 +1,7 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Modified from q2-vsearch
+#
+# Copyright (c) 2016-2024, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -43,7 +45,7 @@ _mp_defaults = {
     # 'maxee': None, # do not exist in usearch
     'threads': "auto", # vsearch default is 1
     'percent_identity': 90,
-    'preset': None
+    # 'preset': None
 }
 
 
@@ -68,14 +70,14 @@ def merge_pairs(
         minovlen, maxdiffs, percent_identity, minmergelen, maxmergelen, threads
     )
 
-    if preset == 'double_reigon_short_overlap':
-        pass
-    elif preset == 'double_reigon_long_overlap':
-        pass
-    elif preset == 'signle_reigon_long_overlap':
-        allowmergestagger = True
-        maxdiffs = 10
-        percent_identity = 80
+    # if preset == 'double_reigon_short_overlap':
+    #     pass
+    # elif preset == 'double_reigon_long_overlap':
+    #     pass
+    # elif preset == 'signle_reigon_long_overlap':
+    #     allowmergestagger = True
+    #     maxdiffs = 10
+    #     percent_identity = 80
         
     return merged, unmerged
 

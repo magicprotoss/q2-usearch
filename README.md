@@ -6,17 +6,18 @@ editor_options:
 
 # q2-usearch
 
-QIIME2 plug-in for [USEARCH](https://drive5.com/usearch/) intergeration
+QIIME2 plug-in for [USEARCH](https://github.com/rcedgar/usearch12/)
+integration
 
 ## Introduction
 
-For years, [USEARCH](https://drive5.com/usearch/) had been the go-to
+For years, [USEARCH](https://drive5.com/usearch/) had been the GOAT
 program for many researchers to process amplicon sequencing data
 (Including us🙈). We originally wrote this plug-in for internal use, now
-with [USEARCH](https://drive5.com/usearch/)'s conversion to open-source
-software, we decided to publish this plug-in for the community
-
-Here are the pipelines this plug-in (plan to) integrate into
+with USEARCH's conversion to [open-source
+software](https://x.com/RobertEdgarPhD/status/1802432815566553234), we
+decided to publish this plug-in for the community to use. Here are the
+pipelines this plug-in (plan to) integrate into
 [QIIME2](https://qiime2.org/):
 
 -   Denoise valid data into ZOTU table and ZOTUs using the uniose3
@@ -92,37 +93,32 @@ mamba install seqkit">=2.0.0"
 # conda install seqkit">=2.0.0"
 ```
 
-Step 5 (free users): [Download
+Step 5: [Download
 USEARCH](https://drive5.com/usearch/download.html)[(version11.0.667)](https://drive5.com/downloads/usearch11.0.667_i86linux32.gz),
 unzip and rename the executable to "usearch"
 
 ``` bash
-wget https://drive5.com/downloads/usearch11.0.667_i86linux32.gz
-gunzip usearch11.0.667_i86linux32.gz && mv usearch11.0.667_i86linux32 usearch
+wget https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64 && mv usearch11.0.667_i86linux64 usearch
 ```
-
-Step 5 (64bit users): rename the
-executable[(version11.0.667)](https://drive5.com/downloads/usearch11.0.667_i86linux32.gz)
-to "usearch"
 
 Step 6: Move the executable to your system's executable binary path and
 add privilege to it
 
 ``` bash
-# Install to the user
-sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
+# Install to the user's bin
+# sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
 # Install system-wide
 # sudo mv usearch /bin && sudo chmod +x /bin/usearch
 # Install to current qiime2's conda env
 mv usearch $(whereis qiime | sed 's/qiime//g')
 chmod +x $(whereis qiime | sed 's/qiime//g')"usearch"
-usearch --version
 ```
 
 If every thing went smoothly, you should be seeing sth. like this
 printed on your terminal
 
 ``` bash
+usearch --version
 # usearch v11.0.667_i86linux64
 ```
 
