@@ -59,7 +59,7 @@ def merge_pairs(
     percent_identity: int = _mp_defaults['percent_identity'],
     minmergelen: int = _mp_defaults['minmergelen'],
     maxmergelen: int = _mp_defaults['maxmergelen'],
-    preset: int = _mp_defaults['preset'],
+#    preset: int = _mp_defaults['preset'],
     threads: str = _mp_defaults['threads'],
 ) -> (
     SingleLanePerSampleSingleEndFastqDirFmt,

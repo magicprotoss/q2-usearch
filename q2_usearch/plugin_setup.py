@@ -51,11 +51,11 @@ plugin.methods.register_function(
         'use_vsearch': Bool,
     },
     name="Pool and denoise valid-data.",
-    description='This Method Pools All Samples Together and Extracts Biological Reads Using the Unoise3 Algorithm ' +
-    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step ' +
-    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
-    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
-    'Using Vsearch as a drop-in Replcacement is supported But with some CAVEATS, see https://github/xxx for details. ',
+    description='This Method Pools All Samples Together and Extracts Biological Reads Using the Unoise3 Algorithm. \n' +
+    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step. \n' +
+    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
+    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
+    'Vsearch was supported in early development but became deprecated for shipment.',
     citations=[citations['edgar2016unoise2']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -104,12 +104,11 @@ plugin.methods.register_function(
         'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
     },
     name="Pool and cluster valid-data at 97% identity.",
-    description='This Method Pools All Samples Together and Cluster Them into 97% OTUs using the Uparse Algorithm ' +
-    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step ' +
-    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
-    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
-    "Since Nowadays 97% OTUs are Considered Mostly OBSELETE and Uparse is Usearch Exclusive," +
-    "Using Vsearch as a drop-in Replcacement is Not Supported Here. ",
+    description='This Method Pools All Samples Together and Cluster Them into 97% OTUs using the Uparse Algorithm. \n' +
+    'Non-Biological Sequence (i.e. Barcodes, Primers) MUST be REMOVED Prior to this step. \n' +
+    'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
+    "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
+    "Note: Nowadays 97% OTUs are Mostly Considered Mostly OBSELETE. ",
     citations=[citations['edgar2013uparse']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -133,13 +132,13 @@ plugin.methods.register_function(
         'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
-             ('denoising_stats', SampleData[USEARCHStats])],
+             ('stats', SampleData[USEARCHStats])],
     output_descriptions={
         'table': 'The resulting feature table.',
         'representative_sequences': ('The resulting feature sequences. Each '
                                      'feature in the feature table will be '
                                      'represented by exactly one sequence. '),
-        'denoising_stats': 'DataFrame containing statistics during each step of the pipeline.'
+        'stats': 'DataFrame containing statistics during each step of the pipeline.'
     }
 )
 
@@ -191,13 +190,13 @@ plugin.methods.register_function(
         'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
-             ('denoising_stats', SampleData[USEARCHStats])],
+             ('stats', SampleData[USEARCHStats])],
     output_descriptions={
         'table': 'The resulting feature table.',
         'representative_sequences': ('The resulting feature sequences. Each '
                                      'feature in the feature table will be '
                                      'represented by exactly one sequence. '),
-        'denoising_stats': 'DataFrame containing statistics during each step of the pipeline.'
+        'stats': 'DataFrame containing statistics during each step of the pipeline.'
     }
 )
 
@@ -261,6 +260,7 @@ plugin.methods.register_function(
 )
 
 # Register Usearch stats fmt
+importlib.import_module('q2_usearch._transformer')
 plugin.register_formats(USEARCHStatsFormat, USEARCHStatsDirFmt)
 plugin.register_semantic_types(USEARCHStats)
 plugin.register_semantic_type_to_format(

@@ -454,16 +454,17 @@ def _split_zotu_chimera(working_dir,
 
     if not use_vsearch:
         # used skbio and hashlib to hash the zotu ids
-        dna_seqs_gen = skbio.io.registry.read(amplicons_fp, format="fasta", verify=True)
+        # convert lower case to upper here
+        dna_seqs_gen = skbio.io.registry.read(amplicons_fp, format="fasta", verify=True, lowercase=True)
         with open(chimeras_fp, "wt") as chimeras_fh:
             with open(zotus_fp, "wt") as zotus_fh:
                 # input seqs already sorted by decreasing abundance by usearch
                 for seq in dna_seqs_gen:
                     if "amptype=chimera" in seq.metadata["id"]:
-                        seq.metadata["id"] = hashlib.md5(str(seq).encode('utf-8')).hexdigest()
+                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest
                         seq.write(chimeras_fh, format="fasta", max_width=80)
                     else:
-                        seq.metadata["id"] = hashlib.md5(str(seq).encode('utf-8')).hexdigest()
+                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()
                         seq.write(zotus_fh, format="fasta", max_width=80)
 
     else:
@@ -475,7 +476,7 @@ def _split_zotu_chimera(working_dir,
         # Get amplicon_ids
         amplicon_id_lst = [hashlib.md5(str(amplicon).upper().encode('utf-8')).hexdigest(
         ) for amplicon in skbio.io.registry.read(vsearch_amplicon_fp, format="fasta", verify=True)]
-        amplicon_seqs_lst = [skbio.DNA(str(amplicon).upper(), metadata={'id': hashlib.md5(str(amplicon).encode(
+        amplicon_seqs_lst = [skbio.DNA(str(amplicon).upper(), metadata={'id': hashlib.md5(str(amplicon).upper().encode(
             'utf-8')).hexdigest()}) for amplicon in skbio.io.registry.read(vsearch_amplicon_fp, format="fasta", verify=True)]
 
         # Get chimeras
@@ -655,7 +656,8 @@ def _uparse_cli(working_dir,
     silence = py_to_cli_interface(cmd, verbose)
     
     # get otu count and reformat otu_ids to qiime2 format
-    dna_seqs_gen = skbio.io.registry.read(otus_fp, format="fasta", verify=True)
+    # convert to uppercase just in case
+    dna_seqs_gen = skbio.io.registry.read(otus_fp, format="fasta", verify=True, lowercase=True)
     otu_seqs = [ seq for seq in dna_seqs_gen ]
     otu_seq_count = len(otu_seqs)
     os.remove(otus_fp)
@@ -856,7 +858,9 @@ def _prep_results_for_artifact_api(working_dir,
     # process zotus
     # if the query seqs is so bad, it is possible for u/vsearch to map a feature with higher frequency than in the filtered seqs
     # so we have to sort the rep-seqs here again accroding to the feature tab
-    rep_seqs_lst = [ seq for seq in skbio.io.registry.read(matched_features_fp, format="fasta", verify=True) ]
+    # the lowercase bug is caused by usearch when outputting mapped zotus...
+    # ducktape: enforce upper case when calcing md5 hash
+    rep_seqs_lst = [ skbio.DNA(str(seq).upper(), metadata = {'id': seq.metadata['id']}) for seq in skbio.io.registry.read(matched_features_fp, format="fasta", verify=True) ]
     rep_seqs_id_lst = [ seq.metadata["id"] for seq in rep_seqs_lst ]
     rep_sequences = pd.Series(rep_seqs_lst, index = rep_seqs_id_lst)
     rep_sequences = rep_sequences.reindex(tab_df.index)
