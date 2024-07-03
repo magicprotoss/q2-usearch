@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2022, <developer name>.
+# Copyright (c) 2024, magicprotoss;biodps.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,15 +11,15 @@ from setuptools import find_packages, setup
 import versioneer
 
 setup(
-    name="usearch",
+    name="q2-usearch",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     license="BSD-3-Clause",
     packages=find_packages(),
-    author="Michal Ziemski",
-    author_email="ziemski.michal@gmail.com",
-    description="This is a template for building a new QIIME 2 plugin.",
-    url="https://github.com/bokulich-lab/q2-plugin-template",
+    author="magicprotoss; biodps",
+    author_email="magicprotoss@hotmail.com",
+    description="This is a plug-in for USEARCH integration into QIIME2.",
+    url="https://github.com/magicprotoss/q2-usearch",
     entry_points={
         "qiime2.plugins": ["q2-usearch=q2_usearch.plugin_setup:plugin"]
     },

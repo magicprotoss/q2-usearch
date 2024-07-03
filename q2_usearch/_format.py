@@ -1,6 +1,11 @@
 # ----------------------------------------------------------------------------
-# This is a simple pulgin for usearch intergration in qiime2
+# Copyright (c) 2024, magicprotoss;biodps.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+
 # register usearch_stats_format
 
 from qiime2.plugin import SemanticType, model

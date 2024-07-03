@@ -2,7 +2,7 @@
 {% set version = data.get('version') or 'placehold' %}
 
 package:
-  name: q2-plugin-name
+  name: q2-usearch
   version: {{ version }}
 
 source:
@@ -25,12 +25,12 @@ test:
     - coverage
     - pytest-cov
   imports:
-    - q2_plugin_name
-    - qiime2.plugins.plugin_name
+    - q2_usearch
+    - qiime2.plugins.usearch
   commands:
-    - pytest --cov q2_plugin_name --pyargs q2_plugin_name
+    - pytest --cov q2_usearch --pyargs q2_usearch
 
 about:
-  home: https://github.com/bokulich-lab/q2-plugin-name
+  home: https://github.com/magicprotoss/q2-usearch
   license: BSD-3-Clause
   license_family: BSD

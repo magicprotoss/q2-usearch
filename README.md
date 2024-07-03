@@ -17,7 +17,7 @@ program for many researchers to process amplicon sequencing data
 with USEARCH's conversion to [open-source
 software](https://x.com/RobertEdgarPhD/status/1802432815566553234), we
 decided to publish this plug-in for the community to use. Here are the
-pipelines this plug-in (plan to) integrate into
+commands/pipelines this plug-in integrates into
 [QIIME2](https://qiime2.org/):
 
 -   Denoise valid data into ZOTU table and ZOTUs using the uniose3
@@ -35,6 +35,10 @@ interface changes
 ## Installation
 
 Step 1: Clone this repository to your compute node
+
+``` bash
+git clone https://github.com/magicprotoss/q2-usearch . && cd q2-usearch
+```
 
 Step 2: Activate the QIIME2 conda enviroment you wish to install to
 
@@ -73,7 +77,7 @@ mamba install -c bioconda seqkit">=2.0.0"
 ```
 
 Step 5: [Download
-USEARCH](https://drive5.com/usearch/download.html)[(version11.0.667)](https://drive5.com/downloads/usearch11.0.667_i86linux32.gz),
+USEARCH(version11.0.667)](https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64),
 unzip and rename the executable to "usearch"
 
 ``` bash
@@ -101,6 +105,12 @@ usearch --version
 # usearch v11.0.667_i86linux64
 ```
 
+Step 7: Optional Clean Up
+
+``` bash
+cd .. && rm -rf q2-usearch
+```
+
 ## Methods
 
 ### 1. denoise-no-primer-pooled
@@ -109,25 +119,45 @@ usearch --version
 
     ![](docs/denoise_no_primer_pooled.png)
 
--   API document
+-   [API document](docs/denoise_no_primer_pooled.md)
 
 ### 2. cluster-no-primer-pooled
 
 -   What's under the hood?
 
--   API document
+    ![](docs/cluster_no_primer_pooled.png)
+
+-   [API document](docs/cluster_no_primer_pooled.md)
 
 ### 3. denoise-then-cluster-no-primer-pooled
 
 -   What's under the hood?
 
--   API document
+    ![](docs/denoise_then_cluster_no_primer_pooled.png)
+
+-   [API document](docs/denoise_then_cluster_no_primer_pooled.md)
 
 ## Tutorials on zOTU Calling
 
 ### Process 'Valid data' from sequencing centers
 
 1.  Identify and prepare your reads files
+
+    Nowadays the common way a sequencing center sends you data is by
+    providing you a link to a shared folder. Let's take a look at the
+    data structure:
+
+    ![](docs/folder_structure.png)
+
+    What you need is the files in the "Valid data" folder. And before
+    proceeding to the next step, we recommend you to backup the all
+    content in said folder and then rename all the valid reads files by
+    removing excess strings other than your Sample-ID. If you're on
+    Windows, one of the easiest way to do it is to use the power rename
+    tool in [MS
+    PowerToys](https://learn.microsoft.com/en-us/windows/powertoys/):
+
+    ![](docs/power_rename.png)
 
 2.  Import reads files into a QIIME2 Artifact
 
@@ -142,11 +172,11 @@ usearch --version
     file in QIIME1. Since we've already renamed our reads files with
     Sample-IDs, we can generate the manifest file easily using the file
     names. There's a couple of ways to do it, there are a lot of pure
-    bash solutions on the internet, like the one in [EasyAmplicon's
-    QIIME2
-    Pipeline](https://github.com/YongxinLiu/EasyAmplicon/blob/master/qiime2/pipeline_qiime2%20en.sh),
-    or use the utility script, which is our preferred method. This
-    script requires one more dependency though, let's install it first.
+    bash solutions on the internet, like [the
+    one](https://library.qiime2.org/plugins/qiime2-manifest-metadata-generator/23/)
+    in QIIME2's library, or use the utility script, which is our
+    preferred method. This script requires one more dependency though,
+    let's install it first.
 
     ``` bash
     # conda install xlsxwriter
@@ -159,15 +189,25 @@ usearch --version
     python generate_metadata.py --input_path <path-to-your-valid-data> --from_filename
     ```
 
-    The script generates two files in the current directory. The fisrt
+    The script generates two files in the current directory. The first
     file 'manifest.tsv' contains the Sample-IDs and absolute file-paths
     for all of our reads, this will be required when importing our
-    reads. The second file 'metadata.xlsx' is a pre-formatted QIIME2
-    metadata file which contains the Sample-IDs and an empty column
-    'default-group'. If we want to use QIIME2 to perform downstream
-    analysis, it's always worth spending a little more time filling the
-    blanks Once we've uploaded the filled metadata file, we can convert
-    it to tsv format for QIIME2 to use.
+    reads.
+
+    ![](docs/manifest_example.png)
+
+    The second file 'metadata.xlsx' is a pre-formatted QIIME2 metadata
+    file which contains the Sample-IDs and an empty column
+    'default-group'.
+
+    ![](docs/metadata_example.png)
+
+    If we want to use QIIME2 to perform downstream analysis, it's always
+    worth spending a little more time filling the blanks Once we've
+    uploaded the filled metadata file, we can convert it to tsv format
+    for QIIME2 to use. See
+    [here](https://docs.qiime2.org/2024.5/tutorials/metadata/#metadata-formatting-requirements)
+    on how to prepare QIIME2 compatible metadata.
 
     ``` bash
     python generate_metadata.py --to_tsv
@@ -191,7 +231,7 @@ usearch --version
 3.  Denoise reads into zOTUs
 
     Now you've got everything prepared, let's call the plug-in and
-    finish the job
+    finish the job.
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
@@ -202,10 +242,23 @@ usearch --version
         --o-denoising-stats stats-unoise3.qza
     ```
 
+    If you haven't received your sequencing data yet, We've prepared the
+    subsetted data-set used in Dong PengSheng's [(Dong, Guo et al.
+    2021)](https://doi.org/10.1016/j.aquaculture.2020.736199) study for
+    you to try it out, the download link will be avaliable soon.
+
+    ``` bash
+    qiime usearch denoise-no-primer-pooled \
+        --i-demultiplexed-sequences ddbj_dl_sub.qza \
+        --p-min-size 4 \
+        --o-representative-sequences rep-seqs-unoise3.qza \
+        --o-table table-unoise3.qza \
+        --o-denoising-stats stats-unoise3.qza
+    ```
+
 ### General Use Cases
 
-1.  Usage on Single-End [Illumina
-    runs](https://www.illumina.com/systems/sequencing-platforms/miseq.html)
+1.  Usage on Single-End Runs
 
     Let's use the ["Moving Pictures"
     tutorial](https://docs.qiime2.org/2024.5/tutorials/moving-pictures/)
@@ -223,7 +276,7 @@ usearch --version
     chimeras are removed by performing denovo chimera identification
     using an imporved version of [uchime2
     algorithm](https://drive5.com/usearch/manual/uchime2_algo.html). The
-    `q2-usearch` plug in have wrapped the valid-data processing pipeline
+    `q2-usearch` plug-in have wrapped the valid-data processing pipeline
     described in [(Yan, Lin et al.
     2024)](https://link.springer.com/article/10.1186/s13717-023-00480-7)
     into the `denoise-no-primer-pooled` method.
@@ -263,14 +316,39 @@ usearch --version
     mv table-unoise3.qza table.qza
     ```
 
-2.  Usage on Paired-End [Illumina
-    runs](https://www.illumina.com/systems/sequencing-platforms/miseq.html)
+2.  Usage on Paired-End Runs
 
-    Let's use the ["Atacama soil microbiome"
-    tutorial](https://docs.qiime2.org/2024.5/tutorials/atacama-soils/)
-    as a basis (用个锤子，这玩意测序平台是罗氏454)
+    For paired-end reads, we need to merge them into joined reads prior
+    to denoising. For this specific reason, we'll follow the ["Atacama
+    soil
+    microbiome"](https://docs.qiime2.org/2024.5/tutorials/atacama-soils/)
+    tutorial. Please navigate to the section before running DADA2.
 
-    （看看能不能找一组已发表的PE数据）
+    Merging Paired End Reads
+
+    The merge-pairs method was adopted from the plug-in q2-vsearch, with
+    a few tweaks to the default parameters. For details on how to set
+    parameters for reads merging, please check out the [usearch
+    manual](https://rcedgar.github.io/usearch12_documentation/cmd_fastq_mergepairs.html).
+
+    ``` bash
+    qiime usearch merge-pairs \
+        --i-demultiplexed-seqs demux.qza \
+        --o-merged-sequences merged.qza \
+        --o-unmerged-sequences unmerged.qza \
+        --verbose
+    ```
+
+    zOTU Calling
+
+    ``` bash
+    qiime usearch denoise-no-primer-pooled \
+        --i-demultiplexed-sequences merged.qza \
+        --p-min-size 4 \
+        --o-representative-sequences rep-seqs-unoise3.qza \
+        --o-table table-unoise3.qza \
+        --o-denoising-stats stats-unoise3.qza
+    ```
 
 ## What's Planned for the future?
 

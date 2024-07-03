@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2024, <developer name>.
+# Copyright (c) 2024, magicprotoss;biodps.
 #
 # Distributed under the terms of the Modified BSD License.
 #

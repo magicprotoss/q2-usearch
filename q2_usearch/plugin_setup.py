@@ -1,6 +1,11 @@
 # ----------------------------------------------------------------------------
-# This is a simple pulgin for usearch intergration in qiime2
+# Copyright (c) 2024, magicprotoss;biodps.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+
 import importlib
 
 from qiime2.plugin import Citations, Plugin, Int, Range, Str, Choices, Float, Bool
@@ -29,10 +34,7 @@ plugin = Plugin(
                 "1. Paired-end reads merging \n"
                 "2. Denoise illumina reads with unoise3 \n"
                 "3. De novo OTU clustering with uparse \n"
-                "4. De novo OTU clustering with uclust after denoise with unoise3 \n"
-                "5. Classify representative sequences with SINTAX "
-                "6. Classify representative sequences with USEARCH's RDP classifier "
-                "7. Perform ePCR on raw reads for meta analysis",
+                "4. De novo OTU clustering with uclust after denoise with unoise3",
     short_description="Plugin for amplicon analysis with USEARCH. ",
 )
 
@@ -201,9 +203,8 @@ plugin.methods.register_function(
 )
 
 ####################
-
-####################
 # modified from q2-vsearch
+
 plugin.methods.register_function(
     function=q2_usearch.merge_pairs,
     inputs={
@@ -253,10 +254,11 @@ plugin.methods.register_function(
         'unmerged_sequences': 'The unmerged paired-end reads.'
     },
     name='Merge paired-end reads.',
-    description=('Merge paired-end sequence reads using vsearch\'s '
-                 'merge_pairs function. See the vsearch documentation for '
+    description=('Merge paired-end sequence reads using usearch\'s '
+                 'merge_pairs function. See the usearch documentation for '
                  'details on how paired-end merging is performed, and for '
-                 'more information on the parameters to this method.')
+                 'more information on the parameters to this method.'),
+    citations=[citations['edgar2010usearch']]
 )
 
 # Register Usearch stats fmt

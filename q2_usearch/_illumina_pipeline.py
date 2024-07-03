@@ -1,5 +1,9 @@
 # ----------------------------------------------------------------------------
-# This is a simple pulgin for usearch intergration in qiime2
+# Copyright (c) 2024, magicprotoss;biodps.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
 import qiime2
@@ -903,7 +907,7 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
     
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
-            str(amplicons_count) + " ;ZOTUs: " + str(zotus_count)
+            str(amplicons_count) + " ;zOTUs: " + str(zotus_count)
     
         _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
         _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch,
