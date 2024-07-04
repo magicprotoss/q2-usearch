@@ -37,7 +37,7 @@ interface changes
 Step 1: Clone this repository to your compute node
 
 ``` bash
-git clone https://github.com/magicprotoss/q2-usearch . && cd q2-usearch
+git clone https://github.com/magicprotoss/q2-usearch .
 ```
 
 Step 2: Activate the QIIME2 conda enviroment you wish to install to
@@ -66,7 +66,6 @@ command
 ``` bash
 cd q2-usearch && python ./setup.py install
 qiime dev refresh-cache
-cd ../ && rm -rf q2-usearch
 ```
 
 Step 4: Install seqkit using mamba/conda
@@ -91,7 +90,7 @@ add privilege to it
 # Install to the user's bin
 # sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
 # Install system-wide
-# sudo mv usearch /bin && sudo chmod +x /bin/usearch
+# sudo mv usearch /bin && sudo chmod a+x /bin/usearch
 # Install to current qiime2's conda env
 mv usearch $(whereis qiime | sed 's/qiime//g')
 chmod +x $(whereis qiime | sed 's/qiime//g')"usearch"
@@ -243,13 +242,14 @@ cd .. && rm -rf q2-usearch
     ```
 
     If you haven't received your sequencing data yet, We've prepared the
-    subsetted data-set used in Dong PengSheng's [(Dong, Guo et al.
+    data-set used in [(Dong, Guo et al.
     2021)](https://doi.org/10.1016/j.aquaculture.2020.736199) study for
-    you to try it out, the download link will be avaliable soon.
+    you to [try it
+    out](https://zenodo.org/records/12655543?token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjQyMzZlOTlkLWFkZmEtNDM3NS1hMzUzLTFlNWMxZjJlM2Q1YSIsImRhdGEiOnt9LCJyYW5kb20iOiI2NzJmNDlkYTRmNTUwZDdlYzA4ZjllMmUyYmU2MTYzNCJ9.U9S4WNLhCgTYMz37j2QUatQ2F-HYzl9suSWlFr11nMdKslJNTraD5IuxvDmBgsAzUc9s8wTsm_9UJhTs6VZ9wA).
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences ddbj_dl_sub.qza \
+        --i-demultiplexed-sequences ddbj_dl.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
