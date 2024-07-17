@@ -61,54 +61,25 @@ qiime dev refresh-cache # 刷新QIIME2命令行界面缓存
 ```
 
 第四步:
-使用mamba或者conda安装[seqkit2](https://mp.weixin.qq.com/s/ucCA4-eZINkppdyQFItXHw)
+使用mamba或者conda安装[seqkit2](https://mp.weixin.qq.com/s/ucCA4-eZINkppdyQFItXHw)和[usearch12](https://mp.weixin.qq.com/s/i0zzOP5IRNdY9PfqHbpDEQ)
 
 ``` bash
 # 建议使用mamba
 # 国内网络不稳conda圈圈转到一半容易报断连错误
-mamba install -c bioconda seqkit">=2.0.0"
-# conda install -c bioconda seqkit">=2.0.0"
+mamba install -c bioconda seqkit">=2.0.0" usearch
+# conda install -c bioconda seqkit">=2.0.0" usearch
 ```
-
-Step 5:
-下载[USEARCH11(64位Linux版)](https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64),
-解压缩后将二进制文件重命名为`usearch`
-
-``` bash
-wget https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64 && mv usearch11.0.667_i86linux64 usearch
-```
-
-Step 6:
-将二进制文件移动到[可执行文件路径](https://blog.csdn.net/jiangshandaiyou/article/details/121083500)下并添加可执行权限
-
-``` bash
-# 安装到当前用户
-# sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
-# 安装到所有用户
-# sudo mv usearch /bin && sudo chmod a+x /bin/usearch
-# 安装到当前QIIME2 conda 环境下
-mv usearch $(whereis qiime | sed 's/qiime//g')
-chmod +x $(whereis qiime | sed 's/qiime//g')"usearch"
-```
-
-第2-6步备选方案（如果您所在的单位网络卡顿下不动）
-
-1.  点我 (百度云在传了) 下载所有所需文件
-
-2.  解压缩，安装插件并拷贝所有所需依赖文件到conda环境中可执行目录下
-
-    ``` bash
-    # 百度云在传了_(:з」∠)_
-    ```
 
 测试一下usearch是否可以被正常调用
 
 ``` bash
-usearch --version
-# usearch v11.0.667_i86linux64
+usearch
+# usearch v12.0 [b1d935b], 132Gb RAM, 24 cores
+# (C) Copyright 2013-24 Robert C. Edgar.
+# https://drive5.com/usearch
 ```
 
-第七步（可选）: 清理残留文件
+第五步（可选）: 清理残留文件
 
 ``` bash
 cd .. && rm -rf q2-usearch
@@ -238,7 +209,7 @@ cd .. && rm -rf q2-usearch
     如果您这边的下机数据还没有释放, 我们准备了[(Dong, Guo et al.
     2021)](https://doi.org/10.1016/j.aquaculture.2020.736199)
     发表在Aquaculture杂志上文章的数据用于测试,
-    下载链接[点我](https://zenodo.org/records/12655543?token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjQyMzZlOTlkLWFkZmEtNDM3NS1hMzUzLTFlNWMxZjJlM2Q1YSIsImRhdGEiOnt9LCJyYW5kb20iOiI2NzJmNDlkYTRmNTUwZDdlYzA4ZjllMmUyYmU2MTYzNCJ9.U9S4WNLhCgTYMz37j2QUatQ2F-HYzl9suSWlFr11nMdKslJNTraD5IuxvDmBgsAzUc9s8wTsm_9UJhTs6VZ9wA)（百度云在传了）.
+    下载链接[点我](https://zenodo.org/records/12655543?token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjQyMzZlOTlkLWFkZmEtNDM3NS1hMzUzLTFlNWMxZjJlM2Q1YSIsImRhdGEiOnt9LCJyYW5kb20iOiI2NzJmNDlkYTRmNTUwZDdlYzA4ZjllMmUyYmU2MTYzNCJ9.U9S4WNLhCgTYMz37j2QUatQ2F-HYzl9suSWlFr11nMdKslJNTraD5IuxvDmBgsAzUc9s8wTsm_9UJhTs6VZ9wA)（百度云[点我](https://pan.baidu.com/s/1C_TwzBLh85k16JxEGEkDjQ?pwd=r6y8)）.
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \

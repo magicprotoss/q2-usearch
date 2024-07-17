@@ -68,43 +68,25 @@ cd q2-usearch && python ./setup.py install
 qiime dev refresh-cache
 ```
 
-Step 4: Install seqkit using mamba/conda
+Step 4: Install [seqkit2](https://bioinf.shenwei.me/seqkit/) and
+[usearch12](https://github.com/rcedgar/usearch12) using mamba/conda
 
 ``` bash
-mamba install -c bioconda seqkit">=2.0.0"
-# conda install -c bioconda seqkit">=2.0.0"
-```
-
-Step 5: [Download
-USEARCH(version11.0.667)](https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64),
-unzip and rename the executable to "usearch"
-
-``` bash
-wget https://github.com/rcedgar/usearch_old_binaries/blob/main/bin/usearch11.0.667_i86linux64 && mv usearch11.0.667_i86linux64 usearch
-```
-
-Step 6: Move the executable to your system's executable binary path and
-add privilege to it
-
-``` bash
-# Install to the user's bin
-# sudo mv usearch /usr/bin && sudo chmod +x /usr/bin/usearch
-# Install system-wide
-# sudo mv usearch /bin && sudo chmod a+x /bin/usearch
-# Install to current qiime2's conda env
-mv usearch $(whereis qiime | sed 's/qiime//g')
-chmod +x $(whereis qiime | sed 's/qiime//g')"usearch"
+mamba install -c bioconda seqkit">=2.0.0" usearch
+# conda install -c bioconda seqkit">=2.0.0" usearch
 ```
 
 If every thing went smoothly, you should be seeing sth. like this
 printed on your terminal
 
 ``` bash
-usearch --version
-# usearch v11.0.667_i86linux64
+usearch
+# usearch v12.0 [b1d935b], 132Gb RAM, 24 cores
+# (C) Copyright 2013-24 Robert C. Edgar.
+# https://drive5.com/usearch
 ```
 
-Step 7: Optional Clean Up
+Step 5: Optional Clean Up
 
 ``` bash
 cd .. && rm -rf q2-usearch

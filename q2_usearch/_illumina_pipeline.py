@@ -410,16 +410,7 @@ def _unoise_cli(working_dir,
         if unoise_alpha != 2.0:
             cmd += ["-alpha", str(unoise_alpha)]
 
-        unoise_log = py_to_cli_interface(cmd, verbose)
-
-        unoise_stats = [info for info in unoise_log if "amplicons" in info][0]
-        uchime_stats = [info for info in unoise_log if "good" in info][0]
-        unoise_stats_lst = re.split("\s+", unoise_stats)
-        uchime_stats_lst = re.split("\s+", uchime_stats)
-        unoise_stats_lst = [text.replace(",", "") for text in unoise_stats_lst]
-        uchime_stats_lst = [text.replace(",", "") for text in uchime_stats_lst]
-        amplicons = int(unoise_stats_lst[unoise_stats_lst.index("amplicons") - 1])
-        zotus = int(uchime_stats_lst[uchime_stats_lst.index("good") - 1])
+        silence = py_to_cli_interface(cmd, verbose)
 
     else:
         unoise_cmd = ["vsearch",
@@ -441,12 +432,7 @@ def _unoise_cli(working_dir,
                       "--relabel_md5"
                       ]
 
-        py_to_cli_interface(uchime_cmd, verbose)
-
-        amplicons = "TBD"
-        zotus = "TBD"
-
-    return amplicons, zotus
+        silence = py_to_cli_interface(uchime_cmd, verbose)
 
 def _split_zotu_chimera(working_dir,
                         use_vsearch: bool = False,
@@ -455,6 +441,10 @@ def _split_zotu_chimera(working_dir,
     zotus_fp = os.path.join(working_dir, "zotus.fasta")
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
     vsearch_amplicon_fp = os.path.join(working_dir, "vsearch_amps.fasta")
+    
+    # init counters
+    amplicons = 0
+    zotus = 0
 
     if not use_vsearch:
         # used skbio and hashlib to hash the zotu ids
@@ -465,23 +455,25 @@ def _split_zotu_chimera(working_dir,
                 # input seqs already sorted by decreasing abundance by usearch
                 for seq in dna_seqs_gen:
                     if "amptype=chimera" in seq.metadata["id"]:
-                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest
+                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()
                         seq.write(chimeras_fh, format="fasta", max_width=80)
                     else:
                         seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()
                         seq.write(zotus_fh, format="fasta", max_width=80)
-
+                        zotus += 1
+                    amplicons += 1
     else:
         # use skbio to separate chimeras from amplicons
-
         # Get zotu_ids
         zotu_id_lst = [zotu.metadata["id"] for zotu in skbio.io.registry.read(
             zotus_fp, format="fasta", verify=True)]
+        zotus = len(zotu_id_lst)
         # Get amplicon_ids
         amplicon_id_lst = [hashlib.md5(str(amplicon).upper().encode('utf-8')).hexdigest(
         ) for amplicon in skbio.io.registry.read(vsearch_amplicon_fp, format="fasta", verify=True)]
         amplicon_seqs_lst = [skbio.DNA(str(amplicon).upper(), metadata={'id': hashlib.md5(str(amplicon).upper().encode(
             'utf-8')).hexdigest()}) for amplicon in skbio.io.registry.read(vsearch_amplicon_fp, format="fasta", verify=True)]
+        amplicons = len(amplicon_id_lst)
 
         # Get chimeras
         chimera_id_lst = [
@@ -496,7 +488,8 @@ def _split_zotu_chimera(working_dir,
                 
     if verbose:
         print("Successfully split zotus and chimeras and converted to hashed ids")
-
+        
+    return amplicons, zotus
 
 def _cluster_zotus_cli(working_dir,
                        identity=0.99,
@@ -836,10 +829,7 @@ def _prep_results_for_artifact_api(working_dir,
     reads_mapped_to_features_df.index.name = "sample-id"
 
     # sort featrue tab
-    tab_df['sum'] = tab_df.sum(axis=1)
-    tab_df.sort_values(by="sum", ascending=False, inplace=True)
-    tab_df.drop(columns=["sum"], inplace=True)
-    ordered_zotu_ids = tab_df.index.tolist()
+    tab_df = tab_df.reindex(tab_df.sum(axis=1).sort_values(ascending=False).index)
 
     table = biom.Table(tab_df.values, tab_df.index, tab_df.columns)
 
@@ -902,14 +892,14 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
     
         filtered_reads_count, unique_reads_count, singletons_count, = _dereplicate_cli(
             usearch_wd, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
-        amplicons_count, zotus_count, = _unoise_cli(
+        _unoise_cli(
             usearch_wd, min_size=min_size, unoise_alpha=unoise_alpha, use_vsearch=use_vsearch, verbose=verbose)
-    
+        amplicons_count, zotus_count, = _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
+        
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
             str(amplicons_count) + " ;zOTUs: " + str(zotus_count)
-    
-        _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
+
         _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch,
                             threads=n_threads, verbose=verbose)
         table, representative_sequences, reads_mapped_to_zotus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
@@ -1040,16 +1030,17 @@ def denoise_then_cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePer
     
         filtered_reads_count, unique_reads_count, singletons_count, = _dereplicate_cli(
             usearch_wd, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
-        amplicons_count, zotus_count, = _unoise_cli(
+        _unoise_cli(
             usearch_wd, min_size=min_size, unoise_alpha=unoise_alpha, use_vsearch=use_vsearch, verbose=verbose)
     
-        _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
+        amplicons_count, zotus_count, = _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
         
         otus_count = _cluster_zotus_cli(usearch_wd, identity=perc_identity, use_vsearch=use_vsearch, verbose=verbose)
         
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
             str(amplicons_count) + " ;ZOTUs: " + str(zotus_count) + " ;OTUs: " + str(otus_count)
+
         _build_otu_tab_cli(usearch_wd, identity=perc_identity, use_vsearch=use_vsearch,
                             threads=n_threads, verbose=verbose)
         table, representative_sequences, reads_mapped_to_otus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
