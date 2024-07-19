@@ -34,7 +34,8 @@ plugin = Plugin(
                 "1. Paired-end reads merging \n"
                 "2. Denoise illumina reads with unoise3 \n"
                 "3. De novo OTU clustering with uparse \n"
-                "4. De novo OTU clustering with uclust after denoise with unoise3",
+                "4. De novo OTU clustering with uclust after denoise with unoise3 \n"
+                "5. Taxonomy assignment with sintax",
     short_description="Plugin for amplicon analysis with USEARCH. ",
 )
 
@@ -199,6 +200,41 @@ plugin.methods.register_function(
                                      'feature in the feature table will be '
                                      'represented by exactly one sequence. '),
         'stats': 'DataFrame containing statistics during each step of the pipeline.'
+    }
+)
+
+plugin.methods.register_function(
+    function=q2_usearch.sintax,
+    parameters={
+        'strand': Str % Choices('plus', 'both'),
+        'threads': Int % Range(1, None) | Str % Choices(['auto']),
+        'confidence': Float % Range(0.1, 1.0)
+    },
+    name="Rapidly classify reads by taxon using sintax.",
+    description='This Method Classifies Query Sequences By Performing BootStrapped Kmer Search \n ' +
+    'Against Refrence Using the Sintax Algorithm. \n' +
+    'QIIME Style Reference Reads And Taxonomy Are Used As Inputs \n.' +
+    'to Facilitate Tighter Intergration with the RESCRIPt plug-in and the QIIME2 EcoSystem . ',
+    citations=[citations['edgar2016sintax']],
+    parameter_descriptions={
+        'strand': """Align against reference sequences in forward ("plus"), or both directions ("both").""",
+        'threads': ('The number of threads to use for computation. '
+                    'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
+        'confidence': 'Confidence threshold for limiting taxonomic depth. '
+    },
+    inputs={
+        'query': FeatureData[Sequence],
+        'reference_reads': FeatureData[Sequence],
+        'reference_taxonomy': FeatureData[Taxonomy]
+    },
+    input_descriptions={
+        'query': 'Query sequences.',
+        'reference_reads': 'Reference sequences.',
+        'reference_taxonomy': 'Reference taxonomy labels.'
+    },
+    outputs=[('classification', FeatureData[Taxonomy])],
+    output_descriptions={
+        'classification': 'Taxonomy classifications of query sequences.'
     }
 )
 

@@ -133,3 +133,7 @@ dmypy.json
 
 # Test Data
 test
+
+# Mardown Renders
+&.html
+docs/*.html
