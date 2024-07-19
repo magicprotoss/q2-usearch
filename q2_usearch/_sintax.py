@@ -377,6 +377,8 @@ def _collect_sintax_anno_to_q2_anno(working_dir, taxa_map_df, empty_df_w_input_s
             if row['Taxon'] is None:
                 q2_tax.at[index, 'Taxon'] == 'Unclassified'
 
+    q2_tax.index.name = 'Feature ID'
+
     return q2_tax
 
 
@@ -388,7 +390,7 @@ def sintax(query: pd.Series,
            strand: str = 'plus',
            threads: str = "auto",
            confidence: float = 0.8
-           ) -> (pd.DataFrame):
+           ) -> pd.DataFrame:
 
     verbose = True
 
