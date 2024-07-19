@@ -135,7 +135,7 @@ dmypy.json
 test
 
 # Mardown Renders
-&.html
+*.html
 docs/*.html
 
 # Test Code
