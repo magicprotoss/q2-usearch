@@ -400,8 +400,6 @@ def sintax(query: pd.Series,
         empty_df_w_input_seqs_labs = _get_input_seqs_ids_and_dump_to_fasta(
             usearch_wd, query)
 
-        reference_reads = reference_reads.view()
-
         taxa_map_df = _convert_q2_seqs_and_taxa_to_utax(
             usearch_wd, reference_reads, reference_taxonomy, verbose)
 
