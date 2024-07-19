@@ -137,3 +137,6 @@ test
 # Mardown Renders
 &.html
 docs/*.html
+
+# Test Code
+q2_usearch/*.ipynb
