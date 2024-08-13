@@ -536,7 +536,6 @@ def _build_zotu_tab_cli(working_dir,
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
     tsv_otutab_fp = os.path.join(working_dir, "zotu_tab.tsv")
     tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
-    matched_zotus_fp = os.path.join(working_dir, "matched_zotus.fasta")
     unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
     log_fp = os.path.join(working_dir, "otutab.log")
     node_thread_count = os.cpu_count()
@@ -558,7 +557,6 @@ def _build_zotu_tab_cli(working_dir,
 
     cmd += [
         "-otutabout", tsv_otutab_fp,
-        "-dbmatched", matched_zotus_fp,
         "-notmatched", unmapped_reads_fp,
         "-id", "1.0",
         "-log", log_fp
@@ -701,7 +699,6 @@ def _build_otu_tab_cli(working_dir,
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
     tsv_otutab_fp = os.path.join(working_dir, "otu_tab.tsv")
     tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
-    matched_otus_fp = os.path.join(working_dir, "matched_otus.fasta")
     unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
     log_fp = os.path.join(working_dir, "otutab.log")
     node_thread_count = os.cpu_count()
@@ -724,7 +721,6 @@ def _build_otu_tab_cli(working_dir,
     cmd += [
         "-id", str(identity),
         "-otutabout", tsv_otutab_fp,
-        "-dbmatched", matched_otus_fp,
         "-notmatched", unmapped_reads_fp,
         "-log", log_fp
     ]
@@ -799,17 +795,17 @@ def _build_otu_tab_cli(working_dir,
 def _prep_results_for_artifact_api(working_dir,
                                    verbose=True):
     # get filepaths
-    matched_zotus_fp = os.path.join(working_dir, "matched_zotus.fasta")
-    matched_otus_fp = os.path.join(working_dir, "matched_otus.fasta")
+    zotus_fp = os.path.join(working_dir, "zotus.fasta")
+    otus_fp = os.path.join(working_dir, "otus.fasta")
     zotutab_fp = os.path.join(working_dir, "zotu_tab.tsv")
     otutab_fp = os.path.join(working_dir, "otu_tab.tsv")
-    if os.path.exists(matched_zotus_fp) and os.path.exists(zotutab_fp):
-        matched_features_fp = os.path.join(working_dir, "matched_zotus.fasta")
-        tab_fp = os.path.join(working_dir, "zotu_tab.tsv")
+    if os.path.exists(zotus_fp) and os.path.exists(zotutab_fp):
+        features_fp = zotus_fp
+        tab_fp = zotutab_fp
         dt_type = "zotu"
-    elif os.path.exists(matched_otus_fp) and os.path.exists(otutab_fp):
-        matched_features_fp = os.path.join(working_dir, "matched_otus.fasta")
-        tab_fp = os.path.join(working_dir, "otu_tab.tsv")
+    elif os.path.exists(otus_fp) and os.path.exists(otutab_fp):
+        features_fp = otus_fp
+        tab_fp = otutab_fp
         dt_type = "otu"
     else:
         raise FileNotFoundError("Could not find u/vsearch output, pipeline broken...")
@@ -854,14 +850,22 @@ def _prep_results_for_artifact_api(working_dir,
     # so we have to sort the rep-seqs here again accroding to the feature tab
     # the lowercase bug is caused by usearch when outputting mapped zotus...
     # ducktape: enforce upper case when calcing md5 hash
-    rep_seqs_lst = [ skbio.DNA(str(seq).upper(), metadata = {'id': seq.metadata['id']}) for seq in skbio.io.registry.read(matched_features_fp, format="fasta", verify=True) ]
+    # if the dataset is big enough, usearch will return mapped zotus and zotutab not 1: 1
+    # furthermore, in usearch12, it seemed the mapped out output was broken, i.e. zotu in tab missing in mapped_zotus.fa
+    # will raise a github issue to Edgar, meanwhile enforce fix here and in the table gen step
+    rep_seqs_lst = [ skbio.DNA(str(seq).upper(), metadata = {'id': seq.metadata['id']}) for seq in skbio.io.registry.read(features_fp, format="fasta", verify=True) ]
     rep_seqs_id_lst = [ seq.metadata["id"] for seq in rep_seqs_lst ]
     rep_sequences = pd.Series(rep_seqs_lst, index = rep_seqs_id_lst)
+    rep_seqs_dropped = rep_sequences[~rep_sequences.index.isin(tab_df.index)]
+    rep_sequences = rep_sequences[rep_sequences.index.isin(tab_df.index)]
     rep_sequences = rep_sequences.reindex(tab_df.index)
     if rep_sequences.isna().sum() > 0:
         raise ValueError("DEBUG: Some features in feature table is not in rep-seqs...")
 
     if verbose:
+        if not rep_seqs_dropped.empty:
+            print('The following zOTUs were extracted by not mapped to zOTU table: ', rep_seqs_dropped.index, sep = '\nzOTU_ID: ')
+            
         if dt_type == "zotu":
             print("Successfully sorted zotutab and zotus...")
         elif dt_type == "otu":

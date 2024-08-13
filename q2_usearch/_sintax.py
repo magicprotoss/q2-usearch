@@ -7,6 +7,11 @@ import subprocess
 import tempfile
 import hashlib
 
+# need to imporve
+# reverse strand
+# check empty imput
+# check output empty befor and after conf slit
+
 
 def run_commands(cmds, verbose=True):
     if verbose:
