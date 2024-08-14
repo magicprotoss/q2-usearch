@@ -52,6 +52,18 @@ def py_to_cli_interface(cmd, verbose=True):
 
     return log_lines_lst
 
+def validate_threads_count(user_threads, verbose=True):
+    if user_threads == "auto":
+        return os.cpu_count() - 3
+    threads = user_threads
+    node_thread_count = os.cpu_count()
+    if user_threads > node_thread_count:
+        if verbose:
+            print("Number of threads specified higher than max available on node...")
+            print("Setting threads to max available on node...")
+        return node_thread_count
+    return threads
+
 
 # Pool All Samples into a single fastq
 
@@ -112,57 +124,22 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                     else:
                         print("Now Working on sample: " + sample_id)
     
-                # Could not find -fastx_relabel equivalent in vsearch
-                if use_vsearch:
-                    dna_seqs_gen = skbio.io.registry.read(
-                        gzip_reader, format="fastq", verify=True, variant=variant)
-                # skbio's fastq writer is way too slow
-                    i = 0
-                    for seq in dna_seqs_gen:
-                        i = i + 1
-                        seq.metadata["id"] = sample_id + "." + str(i)
-                        if not keep_annotations:
-                            seq.metadata["description"] = ""
-                        else:
-                            seq.metadata["description"] = seq.metadata['description'].replace(
-                                "\t", " ")
-                        # pooled seqs use 1.8 encoding
-                        seq.write(pooled_seqs_fh, format="fastq", variant="illumina1.8")
-    
-                # Usearch is much faster at relabeling seqs
-                else:
-    
-                    uzipped_seq_fp = os.path.join(
-                        unzipped_seqs_dirpath, sample_id + ".fastq")
-                    relabed_seq_fp = os.path.join(
-                        relabed_seqs_dirpath, sample_id + ".fastq")
-    
-                    with open(uzipped_seq_fp, 'wt') as f:
-                        f.write(gzip_reader.read())
-                        f.flush()
-    
-                    # get input seqs count
-                    dna_seqs_gen = skbio.io.registry.read(
-                        uzipped_seq_fp, format="fastq", verify=True, variant=variant)
-                    i = len([seq for seq in dna_seqs_gen])
-    
-                    # build relab command
-                    cmd = ["usearch",
-                           "-fastx_relabel", uzipped_seq_fp,
-                           "-prefix", sample_id + ".",
-                           "-fastqout", relabed_seq_fp
-                           ]
-    
-                    relab_log = py_to_cli_interface(cmd, False)
-    
-                    os.remove(uzipped_seq_fp)
-    
-                    # merge all relabed seqs into one file
-    
-                    with open(relabed_seq_fp, 'rt') as seq:
-                        shutil.copyfileobj(seq, pooled_seqs_fh)
-                    # del relabed seq to save space
-                    os.remove(relabed_seq_fp)
+                # -fastx_relabel was deprecated in v12
+
+                dna_seqs_gen = skbio.io.registry.read(
+                    gzip_reader, format="fastq", verify=True, variant=variant)
+            # skbio's fastq writer is way too slow
+                i = 0
+                for seq in dna_seqs_gen:
+                    i = i + 1
+                    seq.metadata["id"] = sample_id + "." + str(i)
+                    if not keep_annotations:
+                        seq.metadata["description"] = ""
+                    else:
+                        seq.metadata["description"] = seq.metadata['description'].replace(
+                            "\t", " ")
+                    # pooled seqs use 1.8 encoding
+                    seq.write(pooled_seqs_fh, format="fastq", variant="illumina1.8")
                 
                 # write input seqs count to stats_df
                 pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = i
@@ -262,6 +239,7 @@ def _quality_control_cli(working_dir,
                          min_qscore=None, # Since Usearch Retains LQ reads during the final otutab stage, don't perform anthing other than maxee filtering
                          max_ee=1.0,
                          trim_left=0,
+                         trim_right=0, # add this parameter to allow position-based trimming on merged reads
                          trunc_right=0,
                          min_len=50,  # Length filter is nessesary when dealing with valid data
                          max_ns=None,
@@ -299,7 +277,7 @@ def _quality_control_cli(working_dir,
         cmd += ["-fastq_maxns", str(max_ns)]
     # add threads settings
     if threads != "auto":
-        cmd += ["-threads", str(threads)]
+        cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # ring notification bell
     if verbose:
@@ -325,6 +303,10 @@ def _quality_control_cli(working_dir,
         0]
 
     stats_df = stats_df.groupby('sample-id').count()
+    
+    # conserve disk space
+    if use_vsearch:
+        os.remove(pooled_seqs_fp)
 
     return stats_df
 
@@ -360,7 +342,7 @@ def _dereplicate_cli(working_dir,
     if strand == "both":
         cmd += ["-strand", "both"]
     if threads != "auto":
-        cmd += ["-threads", str(threads)]
+        cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # run command and get stats
     derep_log = py_to_cli_interface(cmd, verbose)
@@ -379,6 +361,10 @@ def _dereplicate_cli(working_dir,
         filtered_reads = int(derep_stats_lst[derep_stats_lst.index("seqs") - 1])
         unique_reads = int(derep_stats_lst[derep_stats_lst.index("uniques") - 1])
         singletons = int(derep_stats_lst[derep_stats_lst.index("singletons") - 1])
+        
+    # conserve disk space
+    if not use_vsearch:
+        os.remove(filtered_reads_fp)
 
     return filtered_reads, unique_reads, singletons
 
@@ -419,10 +405,10 @@ def _unoise_cli(working_dir,
                       ]
 
         if min_size != 8:
-            unoise_cmd += ["-minsize", str(min_size)]
+            unoise_cmd += ["--minsize", str(min_size)]
 
         if unoise_alpha != 2.0:
-            unoise_cmd += ["-alpha", str(unoise_alpha)]
+            unoise_cmd += ["--alpha", str(unoise_alpha)]
 
         py_to_cli_interface(unoise_cmd, verbose)
 
@@ -433,6 +419,9 @@ def _unoise_cli(working_dir,
                       ]
 
         silence = py_to_cli_interface(uchime_cmd, verbose)
+        
+    # conserve disk space
+    os.remove(unique_reads_fp)
 
 def _split_zotu_chimera(working_dir,
                         use_vsearch: bool = False,
@@ -525,6 +514,7 @@ def _cluster_zotus_cli(working_dir,
     return otus
 
 def _build_zotu_tab_cli(working_dir,
+                        identity=0.97,
                         threads="auto",
                         chimera_map="vsearch",
                         use_vsearch: bool = False,
@@ -538,7 +528,6 @@ def _build_zotu_tab_cli(working_dir,
     tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
     unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
     log_fp = os.path.join(working_dir, "otutab.log")
-    node_thread_count = os.cpu_count()
 
     # Building otu table command
     if use_vsearch:
@@ -558,20 +547,11 @@ def _build_zotu_tab_cli(working_dir,
     cmd += [
         "-otutabout", tsv_otutab_fp,
         "-notmatched", unmapped_reads_fp,
-        "-id", "1.0",
+        "-id", str(identity),
         "-log", log_fp
     ]
 
-    if threads != "auto":
-        if threads > node_thread_count:
-            if verbose:
-                print("Number of threads specified higher than max available on node...")
-                print("Setting threads to max available on node...")
-            cmd += ["-threads", str(node_thread_count)]
-        else:
-            cmd += ["-threads", str(threads)]
-    else:
-        cmd += ["-threads", str(node_thread_count - 3)]
+    cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # run command
     # we can do stats in another function
@@ -591,16 +571,7 @@ def _build_zotu_tab_cli(working_dir,
                        "-otutabout", tsv_chimeratab_fp
                        ]
 
-        if threads != "auto":
-            if threads > node_thread_count:
-                if verbose:
-                    print("Number of threads specified higher than max available on node...")
-                    print("Setting threads to max available on node...")
-                chimera_cmd += ["-threads", str(node_thread_count)]
-            else:
-                chimera_cmd += ["-threads", str(threads)]
-        else:
-            chimera_cmd += ["-threads", str(node_thread_count - 3)]
+        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
     else:
         chimera_cmd = ["vsearch",
                        "--usearch_global", unmapped_reads_fp,
@@ -609,16 +580,7 @@ def _build_zotu_tab_cli(working_dir,
                        "--strand", "both",
                        "--otutabout", tsv_chimeratab_fp,
                        ]
-        if threads != "auto":
-            if threads > node_thread_count:
-                if verbose:
-                    print("Number of threads specified higher than max available on node...")
-                    print("Setting threads to max available on node...")
-                chimera_cmd += ["--threads", str(node_thread_count)]
-            else:
-                chimera_cmd += ["--threads", str(threads)]
-        else:
-            chimera_cmd += ["--threads", str(node_thread_count - 3)]
+        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # run command
     # we can do stats in another function
@@ -701,7 +663,6 @@ def _build_otu_tab_cli(working_dir,
     tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
     unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
     log_fp = os.path.join(working_dir, "otutab.log")
-    node_thread_count = os.cpu_count()
 
     # Building otu table command
     if use_vsearch:
@@ -725,16 +686,7 @@ def _build_otu_tab_cli(working_dir,
         "-log", log_fp
     ]
 
-    if threads != "auto":
-        if threads > node_thread_count:
-            if verbose:
-                print("Number of threads specified higher than max available on node...")
-                print("Setting threads to max available on node...")
-            cmd += ["-threads", str(node_thread_count)]
-        else:
-            cmd += ["-threads", str(threads)]
-    else:
-        cmd += ["-threads", str(node_thread_count - 3)]
+    cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # run command
     # we can do stats in another function
@@ -754,16 +706,7 @@ def _build_otu_tab_cli(working_dir,
                        "-otutabout", tsv_chimeratab_fp
                        ]
 
-        if threads != "auto":
-            if threads > node_thread_count:
-                if verbose:
-                    print("Number of threads specified higher than max available on node...")
-                    print("Setting threads to max available on node...")
-                chimera_cmd += ["-threads", str(node_thread_count)]
-            else:
-                chimera_cmd += ["-threads", str(threads)]
-        else:
-            chimera_cmd += ["-threads", str(node_thread_count - 3)]
+        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
     else:
         chimera_cmd = ["vsearch",
                        "--usearch_global", unmapped_reads_fp,
@@ -772,17 +715,7 @@ def _build_otu_tab_cli(working_dir,
                        "--strand", "both",
                        "--otutabout", tsv_chimeratab_fp,
                        ]
-        if threads != "auto":
-            if threads > node_thread_count:
-                if verbose:
-                    print("Number of threads specified higher than max available on node...")
-                    print("Setting threads to max available on node...")
-                chimera_cmd += ["--threads", str(node_thread_count)]
-            else:
-                chimera_cmd += ["--threads", str(threads)]
-        else:
-            chimera_cmd += ["--threads", str(node_thread_count - 3)]
-
+        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
     # run command
     # we can do stats in another function
     if os.path.exists(chimeras_fp):
@@ -880,6 +813,7 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
                                    max_ee: float = 1.0,
                                    n_threads: str = "auto",
                                    min_size: int = 8,
+                                   min_zotu_mapping_identity: float = 1.00, # change to 0.97 in later release
                                    unoise_alpha: float = 2.0,
                                    use_vsearch: bool = False,
                                    ) -> (biom.Table, pd.Series, qiime2.Metadata):
@@ -904,7 +838,7 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
             str(amplicons_count) + " ;zOTUs: " + str(zotus_count)
 
-        _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch,
+        _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch, min_zotu_mapping_identity = min_zotu_mapping_identity,
                             threads=n_threads, verbose=verbose)
         table, representative_sequences, reads_mapped_to_zotus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
             usearch_wd, verbose=verbose)
@@ -1043,7 +977,7 @@ def denoise_then_cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePer
         
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
-            str(amplicons_count) + " ;ZOTUs: " + str(zotus_count) + " ;OTUs: " + str(otus_count)
+            str(amplicons_count) + " ;zOTUs: " + str(zotus_count) + " ;OTUs: " + str(otus_count)
 
         _build_otu_tab_cli(usearch_wd, identity=perc_identity, use_vsearch=use_vsearch,
                             threads=n_threads, verbose=verbose)

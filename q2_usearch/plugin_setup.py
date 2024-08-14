@@ -49,6 +49,7 @@ plugin.methods.register_function(
         'min_len': Int % Range(0, None),
         'max_ee': Float % Range(0.0, None),
         'min_size': Int % Range(1, None),
+        'min_zotu_mapping_identity': Float % Range(0.97, 1.00),
         'unoise_alpha': Float % Range(0.0, None),
         'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
         'use_vsearch': Bool,
@@ -74,6 +75,12 @@ plugin.methods.register_function(
         'min_size': ('The minimum abundance of input reads to be retained. '
                      'For higher sensivity, reducing minsize to 4 is reasonable. '
                      'Note: with smaller minsize, there tends to be more errors in low-abundance zotus. '),
+        'min_zotu_mapping_identity': ('When building zotu tab, the minimum identity to map a given read to a zotu. '
+                                      'This parameter is set to filter out all reads that contains too much errors, '
+                                      'Which supposedly, would effect the their pair-wise alignment against zOTUs when building zOTU table. '
+                                      'In dada2, this is avoided by performing aggressive max_ee filtering based on q-scores to remove those reads.'
+                                      "Then the 'KDIST_CUTOFF' and 'BAND_SIZE' parameter further restricts weak alignment. "
+                                      'The default value is 0.97, which is the canonical radius of OTU clustering in the past. '),
         'unoise_alpha': 'See UNOISE2 paper for definition',
         'n_threads': ('The number of threads to use for computation. '
                       'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
