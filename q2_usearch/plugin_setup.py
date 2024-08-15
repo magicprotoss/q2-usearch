@@ -49,7 +49,7 @@ plugin.methods.register_function(
         'min_len': Int % Range(0, None),
         'max_ee': Float % Range(0.0, None),
         'min_size': Int % Range(1, None),
-        'min_zotu_mapping_identity': Float % Range(0.97, 1.00),
+        'min_zotu_mapping_identity': Float % Range(0.97, 1, inclusive_start=True, inclusive_end=True),
         'unoise_alpha': Float % Range(0.0, None),
         'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
         'use_vsearch': Bool,
@@ -87,9 +87,9 @@ plugin.methods.register_function(
         'use_vsearch': 'Use vsearch instead of usearch for computation . '
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('denoising_stats', SampleData[USEARCHStats])],

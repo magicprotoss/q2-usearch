@@ -806,7 +806,7 @@ def _prep_results_for_artifact_api(working_dir,
 
     return table, rep_sequences, reads_mapped_to_features_df, reads_mapped_to_chimeras_df
 
-def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleEndFastqDirFmt,
+def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFastqDirFmt,
                                    trim_left: int = 0,
                                    trunc_len: int = 0,
                                    min_len: int = 50,
@@ -820,7 +820,7 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
                                        
     verbose = True
 
-    demultiplexed_sequences_dirpath = str(demultiplexed_sequences)
+    demultiplexed_sequences_dirpath = str(demultiplexed_seqs)
     with tempfile.TemporaryDirectory() as usearch_wd:
         input_stats_df = _pool_samples(
             demultiplexed_sequences_dirpath, usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
@@ -838,7 +838,7 @@ def denoise_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
             str(amplicons_count) + " ;zOTUs: " + str(zotus_count)
 
-        _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch, min_zotu_mapping_identity = min_zotu_mapping_identity,
+        _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch, identity = min_zotu_mapping_identity,
                             threads=n_threads, verbose=verbose)
         table, representative_sequences, reads_mapped_to_zotus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
             usearch_wd, verbose=verbose)
