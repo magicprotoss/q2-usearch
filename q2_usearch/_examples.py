@@ -11,7 +11,6 @@
 
 demux_single_url = \
     'https://data.qiime2.org/usage-examples/moving-pictures/demux.qza'
-
 demux_paired_url = \
     'https://data.qiime2.org/usage-examples/atacama-soils/demux-full.qza'
 
@@ -28,7 +27,7 @@ def denoise_no_primer_pooled(use):
         use.UsageOutputNames(
             representative_sequences='zOTUs',
             table='zOTU_Table',
-            stats='denoising_stats'
+            denoising_stats='denoising_stats'
         )
     )
 
@@ -40,10 +39,10 @@ def denoise_no_primer_pooled(use):
 def denoise_then_cluster_no_primer_pooled(use):
     demux_single = use.init_artifact_from_url('demux_single', demux_single_url)
 
-    rep_seqs, table_uclust, denoise_stats = use.action(
+    rep_seqs, table_uclust, denoise_uclust_stats = use.action(
         use.UsageAction('usearch', 'denoise_then_cluster_no_primer_pooled'),
         use.UsageInputs(
-            demultiplexed_seqs=demux_paired,
+            demultiplexed_seqs=demux_single,
             trunc_len=120,
             min_size=4
         ),
@@ -56,16 +55,16 @@ def denoise_then_cluster_no_primer_pooled(use):
 
     rep_seqs.assert_output_type('FeatureData[Sequence]')
     table_uclust.assert_output_type('FeatureTable[Frequency]')
-    denoise_stats.assert_output_type('SampleData[USEARCHStats]')
-    
-    
+    denoise_uclust_stats.assert_output_type('SampleData[USEARCHStats]')
+
+
 def cluster_no_primer_pooled(use):
     demux_single = use.init_artifact_from_url('demux_single', demux_single_url)
 
-    rep_seqs, table_uparse, denoise_stats = use.action(
+    rep_seqs, table_uparse, cluster_stats = use.action(
         use.UsageAction('usearch', 'cluster_no_primer_pooled'),
         use.UsageInputs(
-            demultiplexed_seqs=demux_paired,
+            demultiplexed_seqs=demux_single,
             trunc_len=120
         ),
         use.UsageOutputNames(
@@ -77,13 +76,14 @@ def cluster_no_primer_pooled(use):
 
     rep_seqs.assert_output_type('FeatureData[Sequence]')
     table_uparse.assert_output_type('FeatureTable[Frequency]')
-    stats.assert_output_type('SampleData[USEARCHStats]')
-    
+    cluster_stats.assert_output_type('SampleData[USEARCHStats]')
+
+
 def merge_pairs(use):
     demux_paired = use.init_artifact_from_url('demux_paired', demux_paired_url)
 
     merged_sequences, unmerged_sequences = use.action(
-        use.UsageAction('usearch', 'merge-pairs'),
+        use.UsageAction('usearch', 'merge_pairs'),
         use.UsageInputs(
             demultiplexed_seqs=demux_paired
         ),

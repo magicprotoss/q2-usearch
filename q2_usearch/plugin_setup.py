@@ -13,7 +13,6 @@ from q2_types.feature_data import FeatureData, Sequence, Taxonomy
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.sample_data import SampleData
 from q2_types.per_sample_sequences import SequencesWithQuality, Sequences, JoinedSequencesWithQuality, PairedEndSequencesWithQuality
-
 from qiime2.plugin import plugin
 
 
@@ -22,6 +21,7 @@ import q2_usearch
 
 # Register Usearch stats fmt
 from q2_usearch._format import USEARCHStats, USEARCHStatsFormat, USEARCHStatsDirFmt
+import q2_usearch._examples as examples
 
 citations = Citations.load("citations.bib", package="q2_usearch")
 
@@ -60,6 +60,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
     'Vsearch was supported in early development but became deprecated for shipment.',
+    examples={
+        'denoise_no_primer_pooled': examples.denoise_no_primer_pooled
+    },
     citations=[citations['edgar2016unoise2']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -119,6 +122,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
     "Note: Nowadays 97% OTUs are Mostly Considered Mostly OBSELETE. ",
+    examples={
+        'cluster_no_primer_pooled': examples.cluster_no_primer_pooled
+    },
     citations=[citations['edgar2013uparse']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -173,6 +179,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
     'Using Vsearch as a drop-in Replcacement is supported But with some CAVEATS, see https://github/xxx for details. ',
+    examples={
+        'denoise_then_cluster_no_primer_pooled': examples.denoise_then_cluster_no_primer_pooled
+    },
     citations=[citations['edgar2016unoise2']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -301,6 +310,9 @@ plugin.methods.register_function(
                  'merge_pairs function. See the usearch documentation for '
                  'details on how paired-end merging is performed, and for '
                  'more information on the parameters to this method.'),
+    examples={
+        'merge_pairs': examples.merge_pairs
+    },
     citations=[citations['edgar2010usearch']]
 )
 
