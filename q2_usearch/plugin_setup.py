@@ -137,9 +137,9 @@ plugin.methods.register_function(
                       'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('stats', SampleData[USEARCHStats])],
@@ -195,9 +195,9 @@ plugin.methods.register_function(
         'use_vsearch': 'Use vsearch instead of usearch for computation . '
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('stats', SampleData[USEARCHStats])],

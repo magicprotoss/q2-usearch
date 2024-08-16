@@ -52,6 +52,7 @@ def py_to_cli_interface(cmd, verbose=True):
 
     return log_lines_lst
 
+
 def validate_threads_count(user_threads, verbose=True):
     if user_threads == "auto":
         return os.cpu_count() - 3
@@ -67,14 +68,14 @@ def validate_threads_count(user_threads, verbose=True):
 
 # Pool All Samples into a single fastq
 
-def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations: bool = False, use_vsearch: bool = False, debug = False, verbose: bool = True):
+def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations: bool = False, use_vsearch: bool = False, debug=False, verbose: bool = True):
     input_manifest_df = pd.read_csv(os.path.join(
         demultiplexed_sequences_dirpath, 'MANIFEST'), index_col=0, comment='#')
-        
+
     use_temp_sample_ids = False
-        
+
     # check if all input sample_ids meet usearch sample identifier requirements
-    if len(input_manifest_df) != len([ sample_id for sample_id in input_manifest_df.index.to_list() if re.match(r'^[a-zA-Z0-9_]+$', sample_id) ]):
+    if len(input_manifest_df) != len([sample_id for sample_id in input_manifest_df.index.to_list() if re.match(r'^[a-zA-Z0-9_]+$', sample_id)]):
         use_temp_sample_ids = True
         pipeout_denoise_stats_df = pd.DataFrame(
             index=input_manifest_df.index, columns=['prior_to_maxee_filt', 'fixed_sample_id'])
@@ -88,7 +89,7 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
     seqs_stats_dfs_dirpath = os.path.join(working_dir, "seqs_stats_dfs")
     os.mkdir(seqs_stats_dfs_dirpath)
     pooled_seqs_fp = os.path.join(working_dir, "merged.fastq")
-    
+
     if debug:
         # just keep this part for debugging purpose
         # not sure if it's necessary
@@ -99,13 +100,14 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
             variant = "illumina1.8"
         elif phred_offset == 64:
             variant = "illumina1.3"
-    
+
         if verbose:
             if use_temp_sample_ids:
-                print("Relabeling input seqs with unique sample identifiers, this will take a while...\n")
+                print(
+                    "Relabeling input seqs with unique sample identifiers, this will take a while...\n")
             else:
                 print("Adding sample-id to input seqs identifiers, this will take a while...\n")
-    
+
         with open(pooled_seqs_fp, 'wt') as pooled_seqs_fh:
             sample_num = 1
             for index, row in input_manifest_df.iterrows():
@@ -116,14 +118,14 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                 fn = str(row['filename'])
                 gzip_reader = gzip.open(
                     os.path.join(demultiplexed_sequences_dirpath, fn), 'rt')
-    
+
                 if verbose:
                     if use_temp_sample_ids:
                         print("Now Working on sample: " + str(index))
                         print("Temporarily Relabeling this sample to: " + sample_id)
                     else:
                         print("Now Working on sample: " + sample_id)
-    
+
                 # -fastx_relabel was deprecated in v12
 
                 dna_seqs_gen = skbio.io.registry.read(
@@ -140,15 +142,15 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                             "\t", " ")
                     # pooled seqs use 1.8 encoding
                     seq.write(pooled_seqs_fh, format="fastq", variant="illumina1.8")
-                
+
                 # write input seqs count to stats_df
                 pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = i
-                
+
                 if use_temp_sample_ids:
                     # keep track of samples
                     pipeout_denoise_stats_df.loc[index, 'fixed_sample_id'] = sample_id
                     sample_num = sample_num + 1
-                    
+
             # finally swap the index to fixed ids
 
             pipeout_denoise_stats_df.reset_index(inplace=True)
@@ -156,74 +158,75 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                 columns={'sample-id': 'original_sample_id'}, inplace=True)
             pipeout_denoise_stats_df.set_index('fixed_sample_id', inplace=True)
             pipeout_denoise_stats_df.index.name = "sample-id"
-                
-    
+
     # seqkit makes this go burrrrr......
     else:
-        
+
         if verbose:
-            print("Adding sample-id to input seqs identifiers, seqkit makes things go burrrrrrrrrr...\n")
-        
+            print(
+                "Adding sample-id to input seqs identifiers, seqkit makes things go burrrrrrrrrr...\n")
+
         with open(pooled_seqs_fp, 'wb') as pooled_seqs_fh:
-            
+
             sample_num = 1
-            
+
             for index, row in input_manifest_df.iterrows():
-                
+
                 if use_temp_sample_ids:
                     sample_id = "S" + str(sample_num)
                 else:
                     sample_id = str(index)
                 fn = str(row['filename'])
                 input_fp = os.path.join(demultiplexed_sequences_dirpath, fn)
-                relabed_seq_fp = os.path.join(relabed_seqs_dirpath, sample_id + ".fastq")
-                seqs_stats_df_fp = os.path.join(seqs_stats_dfs_dirpath, sample_id + "_stats.tsv")
-                
-                
+                relabed_seq_fp = os.path.join(
+                    relabed_seqs_dirpath, sample_id + ".fastq")
+                seqs_stats_df_fp = os.path.join(
+                    seqs_stats_dfs_dirpath, sample_id + "_stats.tsv")
+
                 if verbose:
                     if use_temp_sample_ids:
                         print("Now Working on sample: " + str(index))
                         print("Temporarily Relabeling this sample to: " + sample_id)
                     else:
                         print("Now Working on sample: " + sample_id)
-                
+
                 # build relabel command
                 relab_cmd = ["seqkit",
-                       "replace",
-                       "-i", input_fp,
-                       "-o", relabed_seq_fp,
-                       "-p", ".+",
-                       "-r", sample_id + ".{nr}"]
-                
+                             "replace",
+                             "-i", input_fp,
+                             "-o", relabed_seq_fp,
+                             "-p", ".+",
+                             "-r", sample_id + ".{nr}"]
+
                 silence = py_to_cli_interface(relab_cmd, verbose=False)
-                
+
                 # append to pooled_seqs and then del
                 with open(relabed_seq_fp, 'rb') as seq:
                     shutil.copyfileobj(seq, pooled_seqs_fh)
-                
+
                 os.remove(relabed_seq_fp)
-                
+
                 # build count seq num command
                 stats_cmd = ["seqkit",
-                       "stats",
-                       "-T",
-                       input_fp,
-                       "-o", seqs_stats_df_fp]
-                       
-                silence = py_to_cli_interface(stats_cmd, verbose=False)
-                
-                # read stats df and append to pipeout_denoise_stats_df
-                stats_df = pd.read_csv(seqs_stats_df_fp, sep="\t", index_col=None, header=0)
-                pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = int(stats_df.at[0, 'num_seqs'])
-                
+                             "stats",
+                             "-T",
+                             input_fp,
+                             "-o", seqs_stats_df_fp]
 
-                
+                silence = py_to_cli_interface(stats_cmd, verbose=False)
+
+                # read stats df and append to pipeout_denoise_stats_df
+                stats_df = pd.read_csv(seqs_stats_df_fp, sep="\t",
+                                       index_col=None, header=0)
+                pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = int(
+                    stats_df.at[0, 'num_seqs'])
+
                 if use_temp_sample_ids:
                     # keep track of samples
                     pipeout_denoise_stats_df.loc[index, 'fixed_sample_id'] = sample_id
                     sample_num = sample_num + 1
-    
-    # finally swap the index to fixed ids        
+
+    # finally swap the index to fixed ids
     if use_temp_sample_ids:
 
         pipeout_denoise_stats_df.reset_index(inplace=True)
@@ -236,10 +239,10 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
 
 
 def _quality_control_cli(working_dir,
-                         min_qscore=None, # Since Usearch Retains LQ reads during the final otutab stage, don't perform anthing other than maxee filtering
+                         min_qscore=None,  # Since Usearch Retains LQ reads during the final otutab stage, don't perform anthing other than maxee filtering
                          max_ee=1.0,
                          trim_left=0,
-                         trim_right=0, # add this parameter to allow position-based trimming on merged reads
+                         trim_right=0,  # add this parameter to allow position-based trimming on merged reads
                          trunc_right=0,
                          min_len=50,  # Length filter is nessesary when dealing with valid data
                          max_ns=None,
@@ -303,7 +306,7 @@ def _quality_control_cli(working_dir,
         0]
 
     stats_df = stats_df.groupby('sample-id').count()
-    
+
     # conserve disk space
     if use_vsearch:
         os.remove(pooled_seqs_fp)
@@ -361,7 +364,7 @@ def _dereplicate_cli(working_dir,
         filtered_reads = int(derep_stats_lst[derep_stats_lst.index("seqs") - 1])
         unique_reads = int(derep_stats_lst[derep_stats_lst.index("uniques") - 1])
         singletons = int(derep_stats_lst[derep_stats_lst.index("singletons") - 1])
-        
+
     # conserve disk space
     if not use_vsearch:
         os.remove(filtered_reads_fp)
@@ -419,9 +422,10 @@ def _unoise_cli(working_dir,
                       ]
 
         silence = py_to_cli_interface(uchime_cmd, verbose)
-        
+
     # conserve disk space
     os.remove(unique_reads_fp)
+
 
 def _split_zotu_chimera(working_dir,
                         use_vsearch: bool = False,
@@ -430,7 +434,7 @@ def _split_zotu_chimera(working_dir,
     zotus_fp = os.path.join(working_dir, "zotus.fasta")
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
     vsearch_amplicon_fp = os.path.join(working_dir, "vsearch_amps.fasta")
-    
+
     # init counters
     amplicons = 0
     zotus = 0
@@ -438,16 +442,19 @@ def _split_zotu_chimera(working_dir,
     if not use_vsearch:
         # used skbio and hashlib to hash the zotu ids
         # convert lower case to upper here
-        dna_seqs_gen = skbio.io.registry.read(amplicons_fp, format="fasta", verify=True, lowercase=True)
+        dna_seqs_gen = skbio.io.registry.read(
+            amplicons_fp, format="fasta", verify=True, lowercase=True)
         with open(chimeras_fp, "wt") as chimeras_fh:
             with open(zotus_fp, "wt") as zotus_fh:
                 # input seqs already sorted by decreasing abundance by usearch
                 for seq in dna_seqs_gen:
                     if "amptype=chimera" in seq.metadata["id"]:
-                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()
+                        seq.metadata["id"] = hashlib.md5(
+                            str(seq).upper().encode('utf-8')).hexdigest()
                         seq.write(chimeras_fh, format="fasta", max_width=80)
                     else:
-                        seq.metadata["id"] = hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()
+                        seq.metadata["id"] = hashlib.md5(
+                            str(seq).upper().encode('utf-8')).hexdigest()
                         seq.write(zotus_fh, format="fasta", max_width=80)
                         zotus += 1
                     amplicons += 1
@@ -474,11 +481,12 @@ def _split_zotu_chimera(working_dir,
         with open(chimeras_fp, "wt") as f:
             for seq in chimera_seqs_lst:
                 seq.write(f, format="fasta", max_width=80)
-                
+
     if verbose:
         print("Successfully split zotus and chimeras and converted to hashed ids")
-        
+
     return amplicons, zotus
+
 
 def _cluster_zotus_cli(working_dir,
                        identity=0.99,
@@ -486,7 +494,7 @@ def _cluster_zotus_cli(working_dir,
                        verbose=True):
     zotus_fp = os.path.join(working_dir, "zotus.fasta")
     otus_fp = os.path.join(working_dir, "otus.fasta")
-    
+
     # building uclust cmd
     # during the denoise step the output is sorted by size, seqs with higer abundance tend to be with lower noise
     if not use_vsearch:
@@ -503,49 +511,71 @@ def _cluster_zotus_cli(working_dir,
                "--centroids", otus_fp,
                "--usersort"
                ]
-               
+
     silence = py_to_cli_interface(cmd, verbose)
-    
-    otus = len([seq for seq in skbio.io.registry.read(otus_fp, format="fasta", verify=True)])
-    
+
+    otus = len([seq for seq in skbio.io.registry.read(
+        otus_fp, format="fasta", verify=True)])
+
     if verbose:
         print("Successfully clustered zotus into otus")
-    
+
     return otus
 
-def _build_zotu_tab_cli(working_dir,
-                        identity=0.97,
-                        threads="auto",
-                        chimera_map="vsearch",
-                        use_vsearch: bool = False,
-                        verbose=True):
 
-    raw_reads_fp = os.path.join(working_dir, "merged.fastq")
-    filtered_reads_fp = os.path.join(working_dir, "filtered.fasta")
-    zotus_fp = os.path.join(working_dir, "zotus.fasta")
+def _build_feature_tab_cli(working_dir,
+                           feature_type,
+                           identity=0.97,
+                           threads="auto",
+                           chimera_map="vsearch",
+                           use_vsearch: bool = False,
+                           verbose=True):
+
+    if feature_type == "zOTU":
+        features_fp = os.path.join(working_dir, "zotus.fasta")
+        tsv_feature_tab_fp = os.path.join(working_dir, "zotu_tab.tsv")
+    elif feature_type == "OTU":
+        features_fp = os.path.join(working_dir, "otus.fasta")
+        tsv_feature_tab_fp = os.path.join(working_dir, "otu_tab.tsv")
+    else:
+        raise ValueError("Invalid feature type. Must be either 'zOTU' or 'OTU'.")
+
+    if use_vsearch:
+        reads_in_fp = os.path.join(working_dir, "filtered.fasta")
+    else:
+        reads_in_fp = os.path.join(working_dir, "merged.fastq")
+
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
-    tsv_otutab_fp = os.path.join(working_dir, "zotu_tab.tsv")
-    tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
+    tsv_chimera_tab_fp = os.path.join(working_dir, "chimera_tab.tsv")
     unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
     log_fp = os.path.join(working_dir, "otutab.log")
 
     # Building otu table command
     if use_vsearch:
+        # https://github.com/torognes/vsearch/issues/552
+        # vsearch now supports fastq inputs
+        # still need to validate clustering strategy (id or size) when id != 1
+        # once clarified, we can update the pipeline to provide length trimmed reads as input
+        # for now, stick to the old pipeline
         cmd = ["vsearch",
-               "--usearch_global", filtered_reads_fp,
-               "--db", zotus_fp,
-               # https://github.com/torognes/vsearch/issues/552
+               "--usearch_global", reads_in_fp,
+               "--db", features_fp,
                "--strand", "plus"
                ]
 
     else:
         cmd = ["usearch",
-               "-otutab", raw_reads_fp,
-               "-zotus", zotus_fp
+               "-otutab", reads_in_fp,
                ]
+        # identity first
+        if feature_type == "zOTU":
+            cmd += ["-zotus", features_fp]
+        # size first
+        if feature_type == "OTU":
+            cmd += ["-otus", features_fp]
 
     cmd += [
-        "-otutabout", tsv_otutab_fp,
+        "-otutabout", tsv_feature_tab_fp,
         "-notmatched", unmapped_reads_fp,
         "-id", str(identity),
         "-log", log_fp
@@ -560,36 +590,33 @@ def _build_zotu_tab_cli(working_dir,
     # step2 search chimeras against unmatched fasta
     # build cmd
     if chimera_map == "usearch":
-        if verbose:
-            print("This step is performed just to keep a mental check...")
-            print("Consider using vsearch to speed up this step...")
+        # Consider using vsearch to speed up this step...
         chimera_cmd = ["usearch",
                        "-search_global", unmapped_reads_fp,
                        "-db", chimeras_fp,
                        "-id", "1.0",
                        "-strand", "both",
-                       "-otutabout", tsv_chimeratab_fp
+                       "-otutabout", tsv_chimera_tab_fp
                        ]
-
-        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
     else:
         chimera_cmd = ["vsearch",
                        "--usearch_global", unmapped_reads_fp,
                        "--db", chimeras_fp,
                        "--id", "1.0",
                        "--strand", "both",
-                       "--otutabout", tsv_chimeratab_fp,
+                       "--otutabout", tsv_chimera_tab_fp,
                        ]
-        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
+    chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
 
     # run command
     # we can do stats in another function
     if os.path.exists(chimeras_fp):
         # 2nd layer of insurance
-        if len([ chimera for chimera in skbio.io.registry.read(chimeras_fp, format="fasta", verify=True)]) != 0:
+        if len([chimera for chimera in skbio.io.registry.read(chimeras_fp, format="fasta", verify=True)]) != 0:
+            print("This step is performed just to keep a mental check...")
             chimera_log = py_to_cli_interface(chimera_cmd, verbose)
-            
-            
+
+
 def _uparse_cli(working_dir,
                 min_size=2,
                 verbose=True):
@@ -598,7 +625,7 @@ def _uparse_cli(working_dir,
     chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
     uparse_tab_fp = os.path.join(working_dir, "uparse_out.tsv")
     log_fp = os.path.join(working_dir, "uparse.log")
-    
+
     # building uparse command
     cmd = ["usearch",
            "-cluster_otus", unique_reads_fp,
@@ -606,38 +633,43 @@ def _uparse_cli(working_dir,
            "-uparseout", uparse_tab_fp,
            "-log", log_fp
            ]
-           
+
     if min_size != 2:
         cmd += ["-minsize", str(min_size)]
-        
+
     silence = py_to_cli_interface(cmd, verbose)
-    
+
     # get otu count and reformat otu_ids to qiime2 format
     # convert to uppercase just in case
-    dna_seqs_gen = skbio.io.registry.read(otus_fp, format="fasta", verify=True, lowercase=True)
-    otu_seqs = [ seq for seq in dna_seqs_gen ]
+    dna_seqs_gen = skbio.io.registry.read(
+        otus_fp, format="fasta", verify=True, lowercase=True)
+    otu_seqs = [seq for seq in dna_seqs_gen]
     otu_seq_count = len(otu_seqs)
     os.remove(otus_fp)
     with open(otus_fp, "wt") as f:
         for seq in otu_seqs:
-            skbio.DNA(str(seq), metadata = {'id': hashlib.md5(str(seq).upper().encode('utf-8')).hexdigest()}).write(f, format="fasta", max_width=80)
+            skbio.DNA(str(seq), metadata={'id': hashlib.md5(str(seq).upper().encode(
+                'utf-8')).hexdigest()}).write(f, format="fasta", max_width=80)
 
     # indentify and retrive chimeras seqs
     # get chimera reads ids
-    
+
     uparse_tab = pd.read_csv(uparse_tab_fp, sep="\t", header=None)
-    
+
     try:
-        chimera_seqs_id_list = uparse_tab.loc[uparse_tab[1] == "noisy_chimera", 0].str.split(";", expand = True)[0].to_list()
+        chimera_seqs_id_list = uparse_tab.loc[uparse_tab[1] == "noisy_chimera", 0].str.split(
+            ";", expand=True)[0].to_list()
         chimera_seq_count = len(chimera_seqs_id_list)
-        dna_seqs_gen = skbio.io.registry.read(unique_reads_fp, format="fasta", verify=True)
-        chimera_seqs_lst = [ seq for seq in dna_seqs_gen if seq.metadata["id"].split(";")[0] in chimera_seqs_id_list ]
-        
+        dna_seqs_gen = skbio.io.registry.read(
+            unique_reads_fp, format="fasta", verify=True)
+        chimera_seqs_lst = [seq for seq in dna_seqs_gen if seq.metadata["id"].split(";")[
+            0] in chimera_seqs_id_list]
+
         # Write chimeras
         with open(chimeras_fp, "wt") as f:
             for seq in chimera_seqs_lst:
                 seq.write(f, format="fasta", max_width=80)
-                
+
     except KeyError:
         chimera_seq_count = 0
         if verbose:
@@ -645,83 +677,10 @@ def _uparse_cli(working_dir,
 
     if verbose:
         print("Denovo OTU clustering completed, chimeras splitted")
-        
-    return otu_seq_count , chimera_seq_count
 
-def _build_otu_tab_cli(working_dir,
-                       identity = 0.97,
-                       threads="auto",
-                       chimera_map="vsearch",
-                       use_vsearch: bool = False,
-                       verbose=True):
-################################################################################
-    raw_reads_fp = os.path.join(working_dir, "merged.fastq")
-    filtered_reads_fp = os.path.join(working_dir, "filtered.fasta")
-    otus_fp = os.path.join(working_dir, "otus.fasta")
-    chimeras_fp = os.path.join(working_dir, "chimeras.fasta")
-    tsv_otutab_fp = os.path.join(working_dir, "otu_tab.tsv")
-    tsv_chimeratab_fp = os.path.join(working_dir, "chimera_tab.tsv")
-    unmapped_reads_fp = os.path.join(working_dir, "unmapped.fasta")
-    log_fp = os.path.join(working_dir, "otutab.log")
+    return otu_seq_count, chimera_seq_count
 
-    # Building otu table command
-    if use_vsearch:
-        cmd = ["vsearch",
-               "--usearch_global", filtered_reads_fp,
-               "--db", otus_fp,
-               # https://github.com/torognes/vsearch/issues/552
-               "--strand", "plus"
-               ]
 
-    else:
-        cmd = ["usearch",
-               "-otutab", raw_reads_fp,
-               "-otus", otus_fp
-               ]
-
-    cmd += [
-        "-id", str(identity),
-        "-otutabout", tsv_otutab_fp,
-        "-notmatched", unmapped_reads_fp,
-        "-log", log_fp
-    ]
-
-    cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
-
-    # run command
-    # we can do stats in another function
-    otutab_log = py_to_cli_interface(cmd, verbose)
-
-    # step2 search chimeras against unmatched fasta
-    # build cmd
-    if chimera_map == "usearch":
-        if verbose:
-            print("This step is performed just to keep a mental check...")
-            print("Consider using vsearch to speed up this step...")
-        chimera_cmd = ["usearch",
-                       "-search_global", unmapped_reads_fp,
-                       "-db", chimeras_fp,
-                       "-id", "1.0",
-                       "-strand", "both",
-                       "-otutabout", tsv_chimeratab_fp
-                       ]
-
-        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
-    else:
-        chimera_cmd = ["vsearch",
-                       "--usearch_global", unmapped_reads_fp,
-                       "--db", chimeras_fp,
-                       "--id", "1.0",
-                       "--strand", "both",
-                       "--otutabout", tsv_chimeratab_fp,
-                       ]
-        chimera_cmd += ["-threads", str(validate_threads_count(threads, verbose=verbose))]
-    # run command
-    # we can do stats in another function
-    if os.path.exists(chimeras_fp):
-        # 2nd layer of insurance
-        if len([ chimera for chimera in skbio.io.registry.read(chimeras_fp, format="fasta", verify=True)]) != 0:
-            chimera_log = py_to_cli_interface(chimera_cmd, verbose)
 ################################################################################
 
 
@@ -771,9 +730,10 @@ def _prep_results_for_artifact_api(working_dir,
         reads_mapped_to_chimeras_df = chimera_df.sum().to_frame().astype('int')
         reads_mapped_to_chimeras_df.columns = ["reads_mapped_to_chimeras"]
         reads_mapped_to_chimeras_df.index.name = "sample-id"
-        
+
     else:
-        reads_mapped_to_chimeras_df = pd.DataFrame({"reads_mapped_to_chimeras": 0}, index=reads_mapped_to_features_df.index)
+        reads_mapped_to_chimeras_df = pd.DataFrame(
+            {"reads_mapped_to_chimeras": 0}, index=reads_mapped_to_features_df.index)
 
     if verbose:
         print("Now sorting features accroding to feature tab...")
@@ -786,9 +746,10 @@ def _prep_results_for_artifact_api(working_dir,
     # if the dataset is big enough, usearch will return mapped zotus and zotutab not 1: 1
     # furthermore, in usearch12, it seemed the mapped out output was broken, i.e. zotu in tab missing in mapped_zotus.fa
     # will raise a github issue to Edgar, meanwhile enforce fix here and in the table gen step
-    rep_seqs_lst = [ skbio.DNA(str(seq).upper(), metadata = {'id': seq.metadata['id']}) for seq in skbio.io.registry.read(features_fp, format="fasta", verify=True) ]
-    rep_seqs_id_lst = [ seq.metadata["id"] for seq in rep_seqs_lst ]
-    rep_sequences = pd.Series(rep_seqs_lst, index = rep_seqs_id_lst)
+    rep_seqs_lst = [skbio.DNA(str(seq).upper(), metadata={
+                              'id': seq.metadata['id']}) for seq in skbio.io.registry.read(features_fp, format="fasta", verify=True)]
+    rep_seqs_id_lst = [seq.metadata["id"] for seq in rep_seqs_lst]
+    rep_sequences = pd.Series(rep_seqs_lst, index=rep_seqs_id_lst)
     rep_seqs_dropped = rep_sequences[~rep_sequences.index.isin(tab_df.index)]
     rep_sequences = rep_sequences[rep_sequences.index.isin(tab_df.index)]
     rep_sequences = rep_sequences.reindex(tab_df.index)
@@ -797,8 +758,10 @@ def _prep_results_for_artifact_api(working_dir,
 
     if verbose:
         if not rep_seqs_dropped.empty:
-            print('The following zOTUs were extracted by not mapped to zOTU table: ', rep_seqs_dropped.index, sep = '\nzOTU_ID: ')
-            
+            print('The following features were extracted by not mapped to the feature table: ')
+            for item in rep_seqs_dropped.index:
+                print('Feature_ID: ', item)
+
         if dt_type == "zotu":
             print("Successfully sorted zotutab and zotus...")
         elif dt_type == "otu":
@@ -806,18 +769,19 @@ def _prep_results_for_artifact_api(working_dir,
 
     return table, rep_sequences, reads_mapped_to_features_df, reads_mapped_to_chimeras_df
 
+
 def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFastqDirFmt,
-                                   trim_left: int = 0,
-                                   trunc_len: int = 0,
-                                   min_len: int = 50,
-                                   max_ee: float = 1.0,
-                                   n_threads: str = "auto",
-                                   min_size: int = 8,
-                                   min_zotu_mapping_identity: float = 1.00, # change to 0.97 in later release
-                                   unoise_alpha: float = 2.0,
-                                   use_vsearch: bool = False,
-                                   ) -> (biom.Table, pd.Series, qiime2.Metadata):
-                                       
+                             trim_left: int = 0,
+                             trunc_len: int = 0,
+                             min_len: int = 50,
+                             max_ee: float = 1.0,
+                             n_threads: str = "auto",
+                             min_size: int = 8,
+                             min_zotu_mapping_identity: float = 1.00,  # change to 0.97 in later release
+                             unoise_alpha: float = 2.0,
+                             use_vsearch: bool = False,
+                             ) -> (biom.Table, pd.Series, qiime2.Metadata):
+
     verbose = True
 
     demultiplexed_sequences_dirpath = str(demultiplexed_seqs)
@@ -827,22 +791,23 @@ def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
         # need to sep for each sample as well
         filter_stats_df = _quality_control_cli(usearch_wd, trim_left=trim_left, trunc_right=trunc_len,
                                                min_len=min_len, max_ee=max_ee, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
-    
+
         filtered_reads_count, unique_reads_count, singletons_count, = _dereplicate_cli(
             usearch_wd, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
         _unoise_cli(
             usearch_wd, min_size=min_size, unoise_alpha=unoise_alpha, use_vsearch=use_vsearch, verbose=verbose)
-        amplicons_count, zotus_count, = _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
-        
+        amplicons_count, zotus_count, = _split_zotu_chimera(
+            usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
+
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
             str(amplicons_count) + " ;zOTUs: " + str(zotus_count)
 
-        _build_zotu_tab_cli(usearch_wd, use_vsearch=use_vsearch, identity = min_zotu_mapping_identity,
-                            threads=n_threads, verbose=verbose)
+        _build_feature_tab_cli(usearch_wd, feature_type="zOTU", use_vsearch=use_vsearch, identity=min_zotu_mapping_identity,
+                               threads=n_threads, chimera_map="vsearch", verbose=verbose)
         table, representative_sequences, reads_mapped_to_zotus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
             usearch_wd, verbose=verbose)
-    
+
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
@@ -857,41 +822,43 @@ def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
         denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
             denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
-        
+
         # if sample ids were swapped during the run, we need to swap the sample ids back
         if 'original_sample_id' in denoise_stats_df.columns:
-            
+
             id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
             denoise_stats_df.index = denoise_stats_df['original_sample_id']
             denoise_stats_df.index.name = 'sample-id'
             denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
             table.update_ids(id_map_dict, axis='sample', inplace=True)
-            
+
         denoise_stats_df.fillna(0, inplace=True)
-        
+
         denoising_stats = qiime2.Metadata(denoise_stats_df)
-        
+
     return table, representative_sequences, denoising_stats
 
 # do we need to expose additional uparse parameters here?
-def cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleEndFastqDirFmt,
-                                   trim_left: int = 0,
-                                   trunc_len: int = 0,
-                                   min_len: int = 50,
-                                   max_ee: float = 1.0,
-                                   n_threads: str = "auto",
-                                   min_size: int = 2,
-                                   ) -> (biom.Table, pd.Series, qiime2.Metadata):
-                                       
+
+
+def cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFastqDirFmt,
+                             trim_left: int = 0,
+                             trunc_len: int = 0,
+                             min_len: int = 50,
+                             max_ee: float = 1.0,
+                             n_threads: str = "auto",
+                             min_size: int = 2,
+                             ) -> (biom.Table, pd.Series, qiime2.Metadata):
+
     verbose = True
-    
+
     if verbose:
         print("Since usearch version 9.0.2132, the ability to directly cluster OTUs to custom identity threshould had been removed. ")
         print("The reason for this is that indentity threshold other than 0.97 mess up the chimera detection step. ")
         print("Further expalnation can be found here: https://drive5.com/usearch/manual/uparse_otu_radius.html")
         print("BTW uparse is also usearch exclusive, no vsearch support here.")
 
-    demultiplexed_sequences_dirpath = str(demultiplexed_sequences)
+    demultiplexed_sequences_dirpath = str(demultiplexed_seqs)
     with tempfile.TemporaryDirectory() as usearch_wd:
         input_stats_df = _pool_samples(
             demultiplexed_sequences_dirpath, usearch_wd, verbose=verbose)
@@ -904,16 +871,16 @@ def cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
             usearch_wd, threads=n_threads, verbose=verbose)
         otu_seq_count, chimera_seq_count, = _uparse_cli(
             usearch_wd, min_size=min_size, verbose=verbose)
-    
+
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;OTUs: " + str(otu_seq_count) + \
             " :Chimeras: " + str(chimera_seq_count)
 
-        _build_otu_tab_cli(usearch_wd,
-                            threads=n_threads, verbose=verbose)
+        _build_feature_tab_cli(usearch_wd, feature_type="OTU",
+                               threads=n_threads, verbose=verbose, chimera_map="vsearch", use_vsearch=False, identity=0.97)
         table, representative_sequences, reads_mapped_to_otus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
             usearch_wd, verbose=verbose)
-    
+
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
@@ -928,62 +895,65 @@ def cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleE
         denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
             denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
-        
+
         # if sample ids were swapped during the run, we need to swap the sample ids back
         if 'original_sample_id' in denoise_stats_df.columns:
-            
+
             id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
             denoise_stats_df.index = denoise_stats_df['original_sample_id']
             denoise_stats_df.index.name = 'sample-id'
             denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
             table.update_ids(id_map_dict, axis='sample', inplace=True)
-            
+
         denoise_stats_df.fillna(0, inplace=True)
-        
+
         denoising_stats = qiime2.Metadata(denoise_stats_df)
-        
+
     return table, representative_sequences, denoising_stats
 
-def denoise_then_cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePerSampleSingleEndFastqDirFmt,
-                                   trim_left: int = 0,
-                                   trunc_len: int = 0,
-                                   min_len: int = 50,
-                                   max_ee: float = 1.0,
-                                   perc_identity: float = 0.99,
-                                   n_threads: str = "auto",
-                                   min_size: int = 8,
-                                   unoise_alpha: float = 2.0,
-                                   use_vsearch: bool = False,
-                                   ) -> (biom.Table, pd.Series, qiime2.Metadata):
-                                       
+
+def denoise_then_cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFastqDirFmt,
+                                          trim_left: int = 0,
+                                          trunc_len: int = 0,
+                                          min_len: int = 50,
+                                          max_ee: float = 1.0,
+                                          perc_identity: float = 0.99,
+                                          n_threads: str = "auto",
+                                          min_size: int = 8,
+                                          unoise_alpha: float = 2.0,
+                                          use_vsearch: bool = False,
+                                          ) -> (biom.Table, pd.Series, qiime2.Metadata):
+
     verbose = True
 
-    demultiplexed_sequences_dirpath = str(demultiplexed_sequences)
+    demultiplexed_sequences_dirpath = str(demultiplexed_seqs)
     with tempfile.TemporaryDirectory() as usearch_wd:
         input_stats_df = _pool_samples(
             demultiplexed_sequences_dirpath, usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
         # need to sep for each sample as well
         filter_stats_df = _quality_control_cli(usearch_wd, trim_left=trim_left, trunc_right=trunc_len,
                                                min_len=min_len, max_ee=max_ee, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
-    
+
         filtered_reads_count, unique_reads_count, singletons_count, = _dereplicate_cli(
             usearch_wd, use_vsearch=use_vsearch, threads=n_threads, verbose=verbose)
         _unoise_cli(
             usearch_wd, min_size=min_size, unoise_alpha=unoise_alpha, use_vsearch=use_vsearch, verbose=verbose)
-    
-        amplicons_count, zotus_count, = _split_zotu_chimera(usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
-        
-        otus_count = _cluster_zotus_cli(usearch_wd, identity=perc_identity, use_vsearch=use_vsearch, verbose=verbose)
-        
+
+        amplicons_count, zotus_count, = _split_zotu_chimera(
+            usearch_wd, use_vsearch=use_vsearch, verbose=verbose)
+
+        otus_count = _cluster_zotus_cli(
+            usearch_wd, identity=perc_identity, use_vsearch=use_vsearch, verbose=verbose)
+
         denoise_stats_str = "Total Reads: " + str(filtered_reads_count) + " ;Unique Reads :" + str(unique_reads_count) + \
             " ;Singletons: " + str(singletons_count) + " ;Amplicons: " + \
-            str(amplicons_count) + " ;zOTUs: " + str(zotus_count) + " ;OTUs: " + str(otus_count)
-
-        _build_otu_tab_cli(usearch_wd, identity=perc_identity, use_vsearch=use_vsearch,
-                            threads=n_threads, verbose=verbose)
+            str(amplicons_count) + " ;zOTUs: " + \
+            str(zotus_count) + " ;OTUs: " + str(otus_count)
+        _build_feature_tab_cli(usearch_wd, feature_type="OTU",
+                               threads=n_threads, verbose=verbose, chimera_map="vsearch", use_vsearch=use_vsearch, identity=perc_identity)
         table, representative_sequences, reads_mapped_to_otus_df, reads_mapped_to_chimeras_df = _prep_results_for_artifact_api(
             usearch_wd, verbose=verbose)
-    
+
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
@@ -998,19 +968,18 @@ def denoise_then_cluster_no_primer_pooled(demultiplexed_sequences: SingleLanePer
         denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
             denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
-        
+
         # if sample ids were swapped during the run, we need to swap the sample ids back
         if 'original_sample_id' in denoise_stats_df.columns:
-            
+
             id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
             denoise_stats_df.index = denoise_stats_df['original_sample_id']
             denoise_stats_df.index.name = 'sample-id'
             denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
             table.update_ids(id_map_dict, axis='sample', inplace=True)
-            
-        denoise_stats_df.fillna(0, inplace=True)
-        
-        denoising_stats = qiime2.Metadata(denoise_stats_df)
-        
-    return table, representative_sequences, denoising_stats
 
+        denoise_stats_df.fillna(0, inplace=True)
+
+        denoising_stats = qiime2.Metadata(denoise_stats_df)
+
+    return table, representative_sequences, denoising_stats

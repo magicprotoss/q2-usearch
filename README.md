@@ -216,7 +216,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences fastq-seqs.qza \
+        --i-demultiplexed-seqs fastq-seqs.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
@@ -231,7 +231,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences ddbj_dl.qza \
+        --i-demultiplexed-seqs ddbj_dl.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
@@ -275,7 +275,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences demux.qza \
+        --i-demultiplexed-seqs demux.qza \
         --p-min-size 4 \
         --p-trunc-len 120 \
         --o-representative-sequences rep-seqs-unoise3.qza \
@@ -325,7 +325,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences merged.qza \
+        --i-demultiplexed-seqs merged.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
