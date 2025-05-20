@@ -13,7 +13,6 @@ from q2_types.feature_data import FeatureData, Sequence, Taxonomy
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.sample_data import SampleData
 from q2_types.per_sample_sequences import SequencesWithQuality, Sequences, JoinedSequencesWithQuality, PairedEndSequencesWithQuality
-
 from qiime2.plugin import plugin
 
 
@@ -22,6 +21,7 @@ import q2_usearch
 
 # Register Usearch stats fmt
 from q2_usearch._format import USEARCHStats, USEARCHStatsFormat, USEARCHStatsDirFmt
+import q2_usearch._examples as examples
 
 citations = Citations.load("citations.bib", package="q2_usearch")
 
@@ -49,6 +49,7 @@ plugin.methods.register_function(
         'min_len': Int % Range(0, None),
         'max_ee': Float % Range(0.0, None),
         'min_size': Int % Range(1, None),
+        'min_zotu_mapping_identity': Float % Range(0.97, 1, inclusive_start=True, inclusive_end=True),
         'unoise_alpha': Float % Range(0.0, None),
         'n_threads': Int % Range(1, None) | Str % Choices(['auto']),
         'use_vsearch': Bool,
@@ -59,6 +60,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
     'Vsearch was supported in early development but became deprecated for shipment.',
+    examples={
+        'denoise_no_primer_pooled': examples.denoise_no_primer_pooled
+    },
     citations=[citations['edgar2016unoise2']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -74,15 +78,21 @@ plugin.methods.register_function(
         'min_size': ('The minimum abundance of input reads to be retained. '
                      'For higher sensivity, reducing minsize to 4 is reasonable. '
                      'Note: with smaller minsize, there tends to be more errors in low-abundance zotus. '),
+        'min_zotu_mapping_identity': ('When building zotu tab, the minimum identity to map a given read to a zotu. '
+                                      'This parameter is set to filter out all reads that contains too much errors, '
+                                      'Which supposedly, would effect the their pair-wise alignment against zOTUs when building zOTU table. '
+                                      'In dada2, this is avoided by performing aggressive max_ee filtering based on q-scores to remove those reads.'
+                                      "Then the 'KDIST_CUTOFF' and 'BAND_SIZE' parameter further restricts weak alignment. "
+                                      'The default value is 0.97, which is the canonical radius of OTU clustering in the past. '),
         'unoise_alpha': 'See UNOISE2 paper for definition',
         'n_threads': ('The number of threads to use for computation. '
                       'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
         'use_vsearch': 'Use vsearch instead of usearch for computation . '
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('denoising_stats', SampleData[USEARCHStats])],
@@ -112,6 +122,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol. \n' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center. \n" +
     "Note: Nowadays 97% OTUs are Mostly Considered Mostly OBSELETE. ",
+    examples={
+        'cluster_no_primer_pooled': examples.cluster_no_primer_pooled
+    },
     citations=[citations['edgar2013uparse']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -130,9 +143,9 @@ plugin.methods.register_function(
                       'If set to auto, the plug-in will use (all vcores - 3) present on the node.'),
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('stats', SampleData[USEARCHStats])],
@@ -166,6 +179,9 @@ plugin.methods.register_function(
     'You MUST Also MERGE Your Reads If You are Using PAIRED-END Sequncing Protocol ' +
     "You Can Directly Use the 'Valid-Data' Provided by the Sequencing Center " +
     'Using Vsearch as a drop-in Replcacement is supported But with some CAVEATS, see https://github/xxx for details. ',
+    examples={
+        'denoise_then_cluster_no_primer_pooled': examples.denoise_then_cluster_no_primer_pooled
+    },
     citations=[citations['edgar2016unoise2']],
     parameter_descriptions={
         'trim_left': ("Position at which sequences should be trimmed due to low quality. "
@@ -188,9 +204,9 @@ plugin.methods.register_function(
         'use_vsearch': 'Use vsearch instead of usearch for computation . '
     },
     inputs={
-        'demultiplexed_sequences': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
+        'demultiplexed_seqs': SampleData[SequencesWithQuality] | SampleData[JoinedSequencesWithQuality]},
     input_descriptions={
-        'demultiplexed_sequences': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
+        'demultiplexed_seqs': 'Quality screened, Adapter stripped, Joined(paired-end) sequences.'},
     outputs=[('table', FeatureTable[Frequency]),
              ('representative_sequences', FeatureData[Sequence]),
              ('stats', SampleData[USEARCHStats])],
@@ -294,6 +310,9 @@ plugin.methods.register_function(
                  'merge_pairs function. See the usearch documentation for '
                  'details on how paired-end merging is performed, and for '
                  'more information on the parameters to this method.'),
+    examples={
+        'merge_pairs': examples.merge_pairs
+    },
     citations=[citations['edgar2010usearch']]
 )
 

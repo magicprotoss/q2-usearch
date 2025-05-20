@@ -1,0 +1,37 @@
+package:
+  name: q2-usearch
+  version: {{ PLUGIN_VERSION }}
+source:
+  path: ..
+build:
+  script: make install
+requirements:
+  host:
+  - python {{ python }}
+  - setuptools
+  - versioningit
+  - wheel
+  run:
+  - python {{ python }}
+  - seqkit >= 2.0.0
+  - usearch >= 12.0
+  - xlsxwriter
+  - openpyxl
+  - qiime2 {{ qiime2_epoch }}.*
+  - q2-types {{ qiime2_epoch }}.*
+  build:
+  - setuptools
+  - versioningit
+test:
+  requires:
+  - qiime2 >={{ qiime2 }}
+  - q2-types >={{ q2_types }}
+  - pytest
+  imports:
+  - q2_usearch
+  - qiime2.plugins.usearch
+  commands:
+  - py.test --pyargs usearch
+about:
+  home: https://github.com/magicprotoss/q2-usearch 
+  license: BSD-3-Clause

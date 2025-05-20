@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # q2-usearch
 
 这是一个把 [USEARCH](https://github.com/rcedgar/usearch12/) 装进
@@ -30,7 +24,7 @@ editor_options:
 第一步: 激活我们想要安装到的 QIIME2 conda 环境
 
 ``` bash
-# conda activate qiime2-amplicon-2024.5
+# conda activate qiime2-amplicon-2025.4
 conda activate <目标q2环境名称>
 ```
 
@@ -43,7 +37,7 @@ conda env list | grep qiime2
 这样当前conda下所有环境名中带有qiime2字符的虚拟环境都会被检索出来
 
 ``` bash
-# qiime2-amplicon-2024.5     /home/navi/miniconda3/envs/qiime2-amplicon-2024.5
+# qiime2-amplicon-2025.4     /home/navi/miniconda3/envs/qiime2-amplicon-2025.4
 ```
 
 第二步: 下载插件
@@ -56,18 +50,20 @@ git clone https://github.com/magicprotoss/q2-usearch .
 
 ``` bash
 cd q2-usearch # 切换路径
-python ./setup.py install # 安装插件
+pip install . # 安装插件
 qiime dev refresh-cache # 刷新QIIME2命令行界面缓存
 ```
 
 第四步:
-使用mamba或者conda安装[seqkit2](https://mp.weixin.qq.com/s/ucCA4-eZINkppdyQFItXHw)和[usearch12](https://mp.weixin.qq.com/s/i0zzOP5IRNdY9PfqHbpDEQ)
+使用conda安装[seqkit2](https://mp.weixin.qq.com/s/ucCA4-eZINkppdyQFItXHw)和[usearch12](https://mp.weixin.qq.com/s/i0zzOP5IRNdY9PfqHbpDEQ)
+
+注意：
+本插件也支持usearch11，如果要用老版本的话跳过conda安装usearch，去[GitHub](https://github.com/rcedgar/usearch_old_binaries)上下载可执行文件，重命名成"usearch"后加权并放到$PATH的文件夹里.
 
 ``` bash
-# 建议使用mamba
-# 国内网络不稳conda圈圈转到一半容易报断连错误
-mamba install -c bioconda seqkit">=2.0.0" usearch
-# conda install -c bioconda seqkit">=2.0.0" usearch
+conda install -c bioconda --no-deps seqkit">=2.0.0" usearch
+# 如果电脑上conda版本太老卡“solving environment”的话，可以使用mamba
+# mamba install -c bioconda --no-deps seqkit">=2.0.0" usearch
 ```
 
 测试一下usearch是否可以被正常调用
@@ -199,7 +195,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences fastq-seqs.qza \
+        --i-demultiplexed-seqs fastq-seqs.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
@@ -213,7 +209,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences ddbj_dl.qza \
+        --i-demultiplexed-seqs ddbj_dl.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
@@ -253,7 +249,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences demux.qza \
+        --i-demultiplexed-seqs demux.qza \
         --p-min-size 4 \
         --p-trunc-len 120 \
         --o-representative-sequences rep-seqs-unoise3.qza \
@@ -298,7 +294,7 @@ cd .. && rm -rf q2-usearch
 
     ``` bash
     qiime usearch denoise-no-primer-pooled \
-        --i-demultiplexed-sequences merged.qza \
+        --i-demultiplexed-seqs merged.qza \
         --p-min-size 4 \
         --o-representative-sequences rep-seqs-unoise3.qza \
         --o-table table-unoise3.qza \
