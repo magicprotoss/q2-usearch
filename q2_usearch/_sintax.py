@@ -50,7 +50,7 @@ def _split_tax_into_ranks_and_get_max_levels(tax_df_in, sep):
 
 
 def _replace_q2_split_w_usearch_split_and_remove_leading_trailing_blanks(rank_in):
-    rank_out = re.sub(r"(?<=\b[dpcofgs])\w*__", ':', str(rank_in).strip())
+    rank_out = re.sub(r"(?<=\b[dkpcofgs])\w*__", ':', str(rank_in).strip())
     return rank_out
 
 
