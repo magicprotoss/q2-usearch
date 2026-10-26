@@ -47,7 +47,7 @@ def denoise_then_cluster_no_primer_pooled(use):
             min_size=4
         ),
         use.UsageOutputNames(
-            representative_sequences='99_OTUs',
+            representative_sequences='OTUs_99',
             table='OTU_Table',
             stats='denoising_and_uclusting_stats'
         )
@@ -68,7 +68,7 @@ def cluster_no_primer_pooled(use):
             trunc_len=120
         ),
         use.UsageOutputNames(
-            representative_sequences='97_OTUs',
+            representative_sequences='OTUs_97',
             table='OTU_Table',
             stats='clustering_stats'
         )
