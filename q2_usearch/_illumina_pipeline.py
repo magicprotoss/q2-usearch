@@ -23,6 +23,19 @@ import hashlib
 import biom
 
 
+#####################
+# fix edge case: blank samples
+def _percent_of_input(counts, totals):
+    """Report zero percent for samples with no input reads."""
+    counts = pd.to_numeric(counts).fillna(0).astype(float)
+    totals = pd.to_numeric(totals).astype(float)
+
+    denominator = totals.where(totals.ne(0))
+    percentages = counts.div(denominator).mul(100)
+    return percentages.mask(totals.eq(0), 0.0)
+#####################
+
+
 def py_to_cli_interface(cmd, verbose=True):
     try:
         cmd_log_index = cmd.index("-log") + 1
@@ -811,16 +824,16 @@ def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_passed_filter'] = (
-            denoise_stats_df['reads_passed_filter'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_passed_filter'] = _percent_of_input(
+            denoise_stats_df['reads_passed_filter'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_zotus_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_zotus'] = (
-            denoise_stats_df['reads_mapped_to_zotus'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_zotus'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_zotus'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_chimeras_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
-            denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
         # if sample ids were swapped during the run, we need to swap the sample ids back
@@ -884,16 +897,16 @@ def cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_passed_filter'] = (
-            denoise_stats_df['reads_passed_filter'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_passed_filter'] = _percent_of_input(
+            denoise_stats_df['reads_passed_filter'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_otus_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_otus'] = (
-            denoise_stats_df['reads_mapped_to_otus'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_otus'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_otus'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_chimeras_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
-            denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
         # if sample ids were swapped during the run, we need to swap the sample ids back
@@ -957,16 +970,16 @@ def denoise_then_cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampl
         # finally prep denoise stats df
         denoise_stats_df = input_stats_df.merge(
             filter_stats_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_passed_filter'] = (
-            denoise_stats_df['reads_passed_filter'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_passed_filter'] = _percent_of_input(
+            denoise_stats_df['reads_passed_filter'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_otus_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_otus'] = (
-            denoise_stats_df['reads_mapped_to_otus'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_otus'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_otus'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df = denoise_stats_df.merge(
             reads_mapped_to_chimeras_df, how="left", left_index=True, right_index=True)
-        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = (
-            denoise_stats_df['reads_mapped_to_chimeras'] / denoise_stats_df['prior_to_maxee_filt']) * 100
+        denoise_stats_df['percent_of_input_mapped_to_chimeras'] = _percent_of_input(
+            denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
         # if sample ids were swapped during the run, we need to swap the sample ids back
