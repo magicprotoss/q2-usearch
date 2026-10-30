@@ -8,6 +8,7 @@
 
 from ._illumina_pipeline import denoise_no_primer_pooled, cluster_no_primer_pooled, denoise_then_cluster_no_primer_pooled
 from ._sintax import sintax
+from ._utils import fix_labels
 
 # modified from q2-vsearch
 from ._merge_pairs import merge_pairs
@@ -18,4 +19,5 @@ except ModuleNotFoundError:
     __version__ = '0.0.0+notfound'
 
 __all__ = ['denoise_no_primer_pooled', 'cluster_no_primer_pooled',
-           'denoise_then_cluster_no_primer_pooled', 'merge_pairs', 'sintax']
+           'denoise_then_cluster_no_primer_pooled', 'merge_pairs', 'sintax',
+           'fix_labels']

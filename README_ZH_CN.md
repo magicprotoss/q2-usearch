@@ -81,6 +81,35 @@ usearch
 cd .. && rm -rf q2-usearch
 ```
 
+## 特征表和代表序列整理：fix-labels
+
+同时整理特征表和代表序列。特征表中的所有特征（包括总丰度为零的特征）
+都必须在代表序列中存在。如果任一样本的总计数为零，方法会报错并列出这些样本的 ID。
+方法会删除零丰度特征及表外序列，再按所有样本中的
+累计丰度降序排列；丰度相同时保留特征在原表中的先后顺序。样本 ID 和保留特征的
+计数不变，两个输出中的特征 ID 及顺序保持一致。
+
+必须且只能选择一种模式：
+
+- `--p-to-md5`：以大写序列的 MD5 值作为特征 ID；若生成重复 ID 则报错，不自动合并。
+- `--p-to-legacy --p-label ASV`：依次命名为 `<label>1`、`<label>2` 等，
+  从丰度最高的保留特征开始。前缀必填、不能为空，且只能包含 ASCII 字母
+  （`A-Z`、`a-z`）、数字（`0-9`）和下划线（`_`）。
+- `--p-tidy-only`：保留原特征 ID，仅整理数据。
+
+MD5 和 tidy-only 模式不接受 `--p-label`。整理后无特征时会报错。
+该方法不调用 USEARCH 或 VSEARCH，也不会修改分类注释和系统发育树中的 ID。
+
+``` bash
+qiime usearch fix-labels \
+  --i-feature-table table.qza \
+  --i-rep-seqs rep-seqs.qza \
+  --p-to-legacy \
+  --p-label ASV \
+  --o-fixed-feature-table table-relabeled.qza \
+  --o-fixed-rep-seqs rep-seqs-relabeled.qza
+```
+
 ## 方法
 
 ### 1. denoise-no-primer-pooled

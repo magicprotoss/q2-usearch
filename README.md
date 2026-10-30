@@ -115,6 +115,40 @@ cd .. && rm -rf q2-usearch
 
 -   [API document](docs/denoise_then_cluster_no_primer_pooled.md)
 
+### 4. fix-labels
+
+Tidy a feature table and its representative sequences together. Every table
+feature must have a sequence, including features with zero total abundance.
+Samples with zero total counts raise an error listing the affected sample IDs.
+The method removes zero-abundance features and extra sequences, then sorts by
+decreasing total abundance across samples. Abundance ties preserve the original
+table order. Sample IDs and retained counts stay unchanged.
+
+Choose exactly one mode:
+
+- `--p-to-md5`: use the MD5 hash of the uppercase sequence as each feature ID.
+  Duplicate resulting IDs are rejected; features are not merged.
+- `--p-to-legacy --p-label ASV`: assign `<label>1`, `<label>2`, and so on, with
+  the most abundant retained feature first. The prefix is required, must be
+  nonempty, and contain only ASCII letters (`A-Z`, `a-z`), digits (`0-9`),
+  and underscores (`_`).
+- `--p-tidy-only`: retain the original feature IDs.
+
+`--p-label` is rejected outside legacy mode. A table with no retained features
+is rejected. Both outputs contain matching feature IDs in the same order.
+This method uses Python libraries already present in QIIME 2; it does not call
+USEARCH or VSEARCH. Taxonomy and phylogeny artifacts are not relabeled.
+
+``` bash
+qiime usearch fix-labels \
+  --i-feature-table table.qza \
+  --i-rep-seqs rep-seqs.qza \
+  --p-to-legacy \
+  --p-label ASV \
+  --o-fixed-feature-table table-relabeled.qza \
+  --o-fixed-rep-seqs rep-seqs-relabeled.qza
+```
+
 ## Tutorials on zOTU Calling
 
 ### Process 'Valid data' from sequencing centers

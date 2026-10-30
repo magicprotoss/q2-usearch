@@ -9,6 +9,7 @@
 import importlib
 
 from qiime2.plugin import Citations, Plugin, Int, Range, Str, Choices, Float, Bool
+from qiime2.plugin import TypeMap, Visualization
 from q2_types.feature_data import FeatureData, Sequence, Taxonomy
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.sample_data import SampleData
@@ -314,6 +315,76 @@ plugin.methods.register_function(
         'merge_pairs': examples.merge_pairs
     },
     citations=[citations['edgar2010usearch']]
+)
+
+# Visualization is the unused output placeholder for input-only constraints.
+T_to_md5, T_to_legacy, T_tidy_only, _ = TypeMap({
+    (Bool % Choices(True), Bool % Choices(False), Bool % Choices(False)):
+        Visualization,
+    (Bool % Choices(False), Bool % Choices(True), Bool % Choices(False)):
+        Visualization,
+    (Bool % Choices(False), Bool % Choices(False), Bool % Choices(True)):
+        Visualization,
+})
+
+plugin.methods.register_function(
+    function=q2_usearch.fix_labels,
+    inputs={
+        'feature_table': FeatureTable[Frequency],
+        'rep_seqs': FeatureData[Sequence],
+    },
+    parameters={
+        'to_md5': T_to_md5,
+        'to_legacy': T_to_legacy,
+        'tidy_only': T_tidy_only,
+        'label': Str,
+    },
+    outputs=[
+        ('fixed_feature_table', FeatureTable[Frequency]),
+        ('fixed_rep_seqs', FeatureData[Sequence]),
+    ],
+    input_descriptions={
+        'feature_table': ('Feature table to tidy and optionally relabel. Every '
+                          'feature (ASV/OTU) must be present in rep-seqs. '
+                          'Samples with zero total counts are rejected.'),
+        'rep_seqs': 'Representative sequences (ASV/OTU).',
+    },
+    parameter_descriptions={
+        'to_md5': ('Use the MD5 hash of each uppercase sequence as its feature '
+                   'ID. This matches the default feature-ID convention in '
+                   'QIIME 2 DADA2 and supports merging multiple denoising runs. '
+                   'Duplicate IDs after conversion raise an error. Choose '
+                   'exactly one of to-md5, to-legacy, or tidy-only.'),
+        'to_legacy': ('Use label followed by an integer starting at 1, in '
+                      'decreasing abundance order (e.g. ASV1, ASV2, ASV3). '
+                      'This legacy naming scheme is useful for downstream '
+                      'visualizations. Requires setting --p-label. Choose '
+                      'exactly one of to-md5, to-legacy, or tidy-only.'),
+        'tidy_only': ('Keep the original feature IDs while tidying the dataset: '
+                      'fix sequence ordering and remove extra features from '
+                      'rep-seqs, similar in purpose to microeco\'s '
+                      '$tidy_dataset() method, applied here to the feature '
+                      'table and representative sequences. Choose '
+                      'exactly one of to-md5, to-legacy, or tidy-only.'),
+        'label': ('Prefix for legacy IDs (only A-Z, a-z, 0-9, and _ are allowed). '
+                  'For example, --p-label "ASV" produces ASV1, ASV2, ASV3. '
+                  'Required and nonempty when --p-to-legacy is selected; '
+                  'rejected with --p-to-md5 or --p-tidy-only.'),
+    },
+    output_descriptions={
+        'fixed_feature_table': 'Tidied feature table with synchronized IDs.',
+        'fixed_rep_seqs': ('Retained representative sequences with IDs and '
+                           'order matching the output feature table.'),
+    },
+    name='Tidy and relabel a feature table and representative sequences.',
+    description=(
+        'Convert feature IDs between sequence hashes and legacy numerical IDs. '
+        'First, validate that all features in the feature table are present in '
+        'rep-seqs. Samples with zero total counts raise an error. Then remove '
+        'features with zero abundance across all samples and sort features by '
+        'decreasing cumulative abundance across samples (ties preserve the '
+        'original table order). Finally, tidy rep-seqs to match the feature '
+        'table. Tables with no retained features are rejected.'),
 )
 
 # Register Usearch stats fmt
