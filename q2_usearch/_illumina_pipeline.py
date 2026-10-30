@@ -36,6 +36,18 @@ def _percent_of_input(counts, totals):
 #####################
 
 
+#####################
+# fix edge case: no features survive
+def _check_nonempty_features(features_fp, stage, min_size=None):
+    """Stop before parsing or using an empty feature FASTA."""
+    if os.path.getsize(features_fp) == 0:
+        settings = f" (min_size={min_size})" if min_size is not None else ""
+        raise ValueError(
+            f"No features survived {stage}{settings}. "
+            "Check the abundance threshold and input data.")
+#####################
+
+
 def py_to_cli_interface(cmd, verbose=True):
     try:
         cmd_log_index = cmd.index("-log") + 1
@@ -424,6 +436,9 @@ def _unoise_cli(working_dir,
 
         silence = py_to_cli_interface(cmd, verbose)
 
+        _check_nonempty_features(
+            amplicon_fp, "UNOISE denoising", min_size)
+
     else:
         unoise_cmd = ["vsearch",
                       "--cluster_unoise", unique_reads_fp,
@@ -434,9 +449,12 @@ def _unoise_cli(working_dir,
             unoise_cmd += ["--minsize", str(min_size)]
 
         if unoise_alpha != 2.0:
-            unoise_cmd += ["--alpha", str(unoise_alpha)]
+            unoise_cmd += ["--unoise_alpha", str(unoise_alpha)]
 
         py_to_cli_interface(unoise_cmd, verbose)
+
+        _check_nonempty_features(
+            vsearch_amplicon_fp, "VSEARCH UNOISE denoising", min_size)
 
         uchime_cmd = ["vsearch",
                       "--uchime3_denovo", vsearch_amplicon_fp,
@@ -445,6 +463,9 @@ def _unoise_cli(working_dir,
                       ]
 
         silence = py_to_cli_interface(uchime_cmd, verbose)
+
+        _check_nonempty_features(
+            zotus_fp, "VSEARCH chimera filtering", min_size)
 
     # conserve disk space
     os.remove(unique_reads_fp)
@@ -463,6 +484,8 @@ def _split_zotu_chimera(working_dir,
     zotus = 0
 
     if not use_vsearch:
+        _check_nonempty_features(amplicons_fp, "UNOISE denoising")
+
         # used skbio and hashlib to hash the zotu ids
         # convert lower case to upper here
         dna_seqs_gen = skbio.io.registry.read(
@@ -482,6 +505,8 @@ def _split_zotu_chimera(working_dir,
                         zotus += 1
                     amplicons += 1
     else:
+        _check_nonempty_features(zotus_fp, "VSEARCH chimera filtering")
+
         # use skbio to separate chimeras from amplicons
         # Get zotu_ids
         zotu_id_lst = [zotu.metadata["id"] for zotu in skbio.io.registry.read(
@@ -505,6 +530,8 @@ def _split_zotu_chimera(working_dir,
             for seq in chimera_seqs_lst:
                 seq.write(f, format="fasta", max_width=80)
 
+    _check_nonempty_features(zotus_fp, "chimera filtering")
+
     if verbose:
         print("Successfully split zotus and chimeras and converted to hashed ids")
 
@@ -517,6 +544,8 @@ def _cluster_zotus_cli(working_dir,
                        verbose=True):
     zotus_fp = os.path.join(working_dir, "zotus.fasta")
     otus_fp = os.path.join(working_dir, "otus.fasta")
+
+    _check_nonempty_features(zotus_fp, "UNOISE denoising and chimera filtering")
 
     # building uclust cmd
     # during the denoise step the output is sorted by size, seqs with higer abundance tend to be with lower noise
@@ -536,6 +565,8 @@ def _cluster_zotus_cli(working_dir,
                ]
 
     silence = py_to_cli_interface(cmd, verbose)
+
+    _check_nonempty_features(otus_fp, "zOTU clustering")
 
     otus = len([seq for seq in skbio.io.registry.read(
         otus_fp, format="fasta", verify=True)])
@@ -562,6 +593,8 @@ def _build_feature_tab_cli(working_dir,
         tsv_feature_tab_fp = os.path.join(working_dir, "otu_tab.tsv")
     else:
         raise ValueError("Invalid feature type. Must be either 'zOTU' or 'OTU'.")
+
+    _check_nonempty_features(features_fp, "denoising/clustering")
 
     if use_vsearch:
         reads_in_fp = os.path.join(working_dir, "filtered.fasta")
@@ -661,6 +694,8 @@ def _uparse_cli(working_dir,
         cmd += ["-minsize", str(min_size)]
 
     silence = py_to_cli_interface(cmd, verbose)
+
+    _check_nonempty_features(otus_fp, "UPARSE clustering", min_size)
 
     # get otu count and reformat otu_ids to qiime2 format
     # convert to uppercase just in case
