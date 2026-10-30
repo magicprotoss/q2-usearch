@@ -302,6 +302,16 @@ def _quality_control_cli(working_dir,
     # run command
     fastq_filter_log = py_to_cli_interface(cmd, verbose)
 
+    #####################
+    # fix edge case: all reads filtered out
+    if os.path.getsize(filtered_reads_fp) == 0:
+        raise ValueError(
+            "No reads passed the quality filter across all samples. "
+            "Check the read lengths and filtering settings "
+            f"(trunc_len={trunc_right}, min_len={min_len}, max_ee={max_ee}, "
+            f"trim_left={trim_left}).")
+    #####################
+
     # get stats from log file
     # fastq_filter_stats = [info for info in fastq_filter_log if "Filtered reads" in info][0]
     # fastq_filter_stats_lst = re.split("\s+", fastq_filter_stats)

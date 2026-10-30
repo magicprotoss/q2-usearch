@@ -1,10 +1,11 @@
-"""Regression coverage for per-sample Illumina pipeline statistics."""
+"""Regression coverage for Illumina filtering and per-sample statistics."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from q2_usearch._illumina_pipeline import _percent_of_input
+from q2_usearch import _illumina_pipeline as pipeline
 
 
 def test_blank_sample_preserved_without_changing_other_percentages():
@@ -54,3 +55,43 @@ def test_malformed_counts_are_not_silently_treated_as_zero(invalid_column):
 
     with pytest.raises(ValueError):
         _percent_of_input(**values)
+
+
+@pytest.mark.parametrize('use_vsearch', [False, True])
+@pytest.mark.parametrize('settings', [{'trunc_right': 10000}, {'max_ee': 0}])
+def test_no_reads_passed_filter_has_actionable_error(
+        tmp_path, monkeypatch, use_vsearch, settings):
+    def empty_filter_output(cmd, verbose):
+        (tmp_path / 'filtered.fasta').write_text('')
+        return []
+
+    monkeypatch.setattr(pipeline, 'py_to_cli_interface', empty_filter_output)
+
+    with pytest.raises(ValueError, match='No reads passed the quality filter') as error:
+        pipeline._quality_control_cli(
+            str(tmp_path), use_vsearch=use_vsearch, verbose=False, **settings)
+
+    assert 'across all samples' in str(error.value)
+    assert 'trunc_len=' in str(error.value)
+    assert 'max_ee=' in str(error.value)
+
+
+@pytest.mark.parametrize('use_vsearch', [False, True])
+def test_surviving_reads_keep_per_sample_filter_counts(
+        tmp_path, monkeypatch, use_vsearch):
+    (tmp_path / 'merged.fastq').write_text('')
+
+    def surviving_filter_output(cmd, verbose):
+        (tmp_path / 'filtered.fasta').write_text(
+            '>sample_a.1\nACGT\n>sample_a.2\nACGT\n>sample_b.1\nTGCA\n')
+        return []
+
+    monkeypatch.setattr(pipeline, 'py_to_cli_interface', surviving_filter_output)
+
+    stats = pipeline._quality_control_cli(
+        str(tmp_path), use_vsearch=use_vsearch, verbose=False)
+
+    expected = pd.DataFrame(
+        {'reads_passed_filter': [2, 1]},
+        index=pd.Index(['sample_a', 'sample_b'], name='sample-id'))
+    pd.testing.assert_frame_equal(stats, expected)
