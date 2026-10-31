@@ -16,6 +16,7 @@ from q2_types.per_sample_sequences import SingleLanePerSampleSingleEndFastqDirFm
 from glob import glob
 import shutil
 import gzip
+import csv
 import os
 import re
 import time
@@ -91,22 +92,20 @@ def validate_threads_count(user_threads, verbose=True):
     return threads
 
 
-# Pool All Samples into a single fastq
-
+#####################
+# fix edge case: sample identifiers
 def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations: bool = False, use_vsearch: bool = False, debug=False, verbose: bool = True):
-    input_manifest_df = pd.read_csv(os.path.join(
-        demultiplexed_sequences_dirpath, 'MANIFEST'), index_col=0, comment='#')
+    """Pool reads using temporary IDs and retain every original sample ID."""
+    # CSV records preserve IDs such as 0001 and NA as literal strings.
+    with open(os.path.join(demultiplexed_sequences_dirpath, 'MANIFEST')) as fh:
+        input_manifest_df = pd.DataFrame(csv.DictReader(
+            line for line in fh if not line.startswith('#'))).set_index('sample-id')
 
-    use_temp_sample_ids = False
-
-    # check if all input sample_ids meet usearch sample identifier requirements
-    if len(input_manifest_df) != len([sample_id for sample_id in input_manifest_df.index.to_list() if re.match(r'^[a-zA-Z0-9_]+$', sample_id)]):
-        use_temp_sample_ids = True
-        pipeout_denoise_stats_df = pd.DataFrame(
-            index=input_manifest_df.index, columns=['prior_to_maxee_filt', 'fixed_sample_id'])
-    else:
-        pipeout_denoise_stats_df = pd.DataFrame(
-            index=input_manifest_df.index, columns=['prior_to_maxee_filt'])
+    pipeout_denoise_stats_df = pd.DataFrame(
+        {'prior_to_maxee_filt': 0,
+         'original_sample_id': input_manifest_df.index.to_list()},
+        index=pd.Index([f'S{i}' for i in range(1, len(input_manifest_df) + 1)],
+                       name='sample-id'))
     unzipped_seqs_dirpath = os.path.join(working_dir, "unzipped_seqs")
     os.mkdir(unzipped_seqs_dirpath)
     relabed_seqs_dirpath = os.path.join(working_dir, "relabeled_seqs")
@@ -127,80 +126,46 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
             variant = "illumina1.3"
 
         if verbose:
-            if use_temp_sample_ids:
-                print(
-                    "Relabeling input seqs with unique sample identifiers, this will take a while...\n")
-            else:
-                print("Adding sample-id to input seqs identifiers, this will take a while...\n")
+            print("Relabeling input seqs with temporary sample identifiers...\n")
 
         with open(pooled_seqs_fp, 'wt') as pooled_seqs_fh:
-            sample_num = 1
-            for index, row in input_manifest_df.iterrows():
-                if use_temp_sample_ids:
-                    sample_id = "S" + str(sample_num)
-                else:
-                    sample_id = str(index)
+            for sample_num, (index, row) in enumerate(input_manifest_df.iterrows(), 1):
+                sample_id = f'S{sample_num}'
                 fn = str(row['filename'])
-                gzip_reader = gzip.open(
-                    os.path.join(demultiplexed_sequences_dirpath, fn), 'rt')
 
                 if verbose:
-                    if use_temp_sample_ids:
-                        print("Now Working on sample: " + str(index))
-                        print("Temporarily Relabeling this sample to: " + sample_id)
-                    else:
-                        print("Now Working on sample: " + sample_id)
+                    print("Now Working on sample: " + index)
+                    print("Temporarily Relabeling this sample to: " + sample_id)
 
                 # -fastx_relabel was deprecated in v12
-
-                dna_seqs_gen = skbio.io.registry.read(
-                    gzip_reader, format="fastq", verify=True, variant=variant)
-            # skbio's fastq writer is way too slow
                 i = 0
-                for seq in dna_seqs_gen:
-                    i = i + 1
-                    seq.metadata["id"] = sample_id + "." + str(i)
-                    if not keep_annotations:
-                        seq.metadata["description"] = ""
-                    else:
-                        seq.metadata["description"] = seq.metadata['description'].replace(
-                            "\t", " ")
-                    # pooled seqs use 1.8 encoding
-                    seq.write(pooled_seqs_fh, format="fastq", variant="illumina1.8")
+                with gzip.open(os.path.join(demultiplexed_sequences_dirpath, fn), 'rt') as gzip_reader:
+                    dna_seqs_gen = skbio.io.registry.read(
+                        gzip_reader, format="fastq", verify=True, variant=variant)
+                    # skbio's fastq writer is way too slow
+                    for seq in dna_seqs_gen:
+                        i += 1
+                        seq.metadata["id"] = sample_id + "." + str(i)
+                        if not keep_annotations:
+                            seq.metadata["description"] = ""
+                        else:
+                            seq.metadata["description"] = seq.metadata['description'].replace(
+                                "\t", " ")
+                        # pooled seqs use 1.8 encoding
+                        seq.write(pooled_seqs_fh, format="fastq", variant="illumina1.8")
 
                 # write input seqs count to stats_df
-                pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = i
-
-                if use_temp_sample_ids:
-                    # keep track of samples
-                    pipeout_denoise_stats_df.loc[index, 'fixed_sample_id'] = sample_id
-                    sample_num = sample_num + 1
-
-            # finally swap the index to fixed ids
-
-            pipeout_denoise_stats_df.reset_index(inplace=True)
-            pipeout_denoise_stats_df.rename(
-                columns={'sample-id': 'original_sample_id'}, inplace=True)
-            pipeout_denoise_stats_df.set_index('fixed_sample_id', inplace=True)
-            pipeout_denoise_stats_df.index.name = "sample-id"
+                pipeout_denoise_stats_df.loc[sample_id, 'prior_to_maxee_filt'] = i
 
     # seqkit makes this go burrrrr......
     else:
 
         if verbose:
-            print(
-                "Adding sample-id to input seqs identifiers, seqkit makes things go burrrrrrrrrr...\n")
+            print("Relabeling input seqs with temporary sample identifiers using seqkit...\n")
 
         with open(pooled_seqs_fp, 'wb') as pooled_seqs_fh:
-
-            sample_num = 1
-
-            for index, row in input_manifest_df.iterrows():
-
-                if use_temp_sample_ids:
-                    sample_id = "S" + str(sample_num)
-                else:
-                    sample_id = str(index)
+            for sample_num, (index, row) in enumerate(input_manifest_df.iterrows(), 1):
+                sample_id = f'S{sample_num}'
                 fn = str(row['filename'])
                 input_fp = os.path.join(demultiplexed_sequences_dirpath, fn)
                 relabed_seq_fp = os.path.join(
@@ -209,11 +174,8 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                     seqs_stats_dfs_dirpath, sample_id + "_stats.tsv")
 
                 if verbose:
-                    if use_temp_sample_ids:
-                        print("Now Working on sample: " + str(index))
-                        print("Temporarily Relabeling this sample to: " + sample_id)
-                    else:
-                        print("Now Working on sample: " + sample_id)
+                    print("Now Working on sample: " + index)
+                    print("Temporarily Relabeling this sample to: " + sample_id)
 
                 # build relabel command
                 relab_cmd = ["seqkit",
@@ -243,24 +205,11 @@ def _pool_samples(demultiplexed_sequences_dirpath, working_dir, keep_annotations
                 # read stats df and append to pipeout_denoise_stats_df
                 stats_df = pd.read_csv(seqs_stats_df_fp, sep="\t",
                                        index_col=None, header=0)
-                pipeout_denoise_stats_df.loc[index, 'prior_to_maxee_filt'] = int(
+                pipeout_denoise_stats_df.loc[sample_id, 'prior_to_maxee_filt'] = int(
                     stats_df.at[0, 'num_seqs'])
 
-                if use_temp_sample_ids:
-                    # keep track of samples
-                    pipeout_denoise_stats_df.loc[index, 'fixed_sample_id'] = sample_id
-                    sample_num = sample_num + 1
-
-    # finally swap the index to fixed ids
-    if use_temp_sample_ids:
-
-        pipeout_denoise_stats_df.reset_index(inplace=True)
-        pipeout_denoise_stats_df.rename(
-            columns={'sample-id': 'original_sample_id'}, inplace=True)
-        pipeout_denoise_stats_df.set_index('fixed_sample_id', inplace=True)
-        pipeout_denoise_stats_df.index.name = "sample-id"
-
     return pipeout_denoise_stats_df
+#####################
 
 
 def _quality_control_cli(working_dir,
@@ -881,14 +830,12 @@ def denoise_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
             denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
-        # if sample ids were swapped during the run, we need to swap the sample ids back
-        if 'original_sample_id' in denoise_stats_df.columns:
-
-            id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
-            denoise_stats_df.index = denoise_stats_df['original_sample_id']
-            denoise_stats_df.index.name = 'sample-id'
-            denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
-            table.update_ids(id_map_dict, axis='sample', inplace=True)
+        # Restore the original IDs in both statistics and the feature table.
+        id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
+        denoise_stats_df.index = denoise_stats_df['original_sample_id']
+        denoise_stats_df.index.name = 'sample-id'
+        denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
+        table.update_ids(id_map_dict, axis='sample', inplace=True)
 
         denoise_stats_df.fillna(0, inplace=True)
 
@@ -954,14 +901,12 @@ def cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampleSingleEndFas
             denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
-        # if sample ids were swapped during the run, we need to swap the sample ids back
-        if 'original_sample_id' in denoise_stats_df.columns:
-
-            id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
-            denoise_stats_df.index = denoise_stats_df['original_sample_id']
-            denoise_stats_df.index.name = 'sample-id'
-            denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
-            table.update_ids(id_map_dict, axis='sample', inplace=True)
+        # Restore the original IDs in both statistics and the feature table.
+        id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
+        denoise_stats_df.index = denoise_stats_df['original_sample_id']
+        denoise_stats_df.index.name = 'sample-id'
+        denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
+        table.update_ids(id_map_dict, axis='sample', inplace=True)
 
         denoise_stats_df.fillna(0, inplace=True)
 
@@ -1027,14 +972,12 @@ def denoise_then_cluster_no_primer_pooled(demultiplexed_seqs: SingleLanePerSampl
             denoise_stats_df['reads_mapped_to_chimeras'], denoise_stats_df['prior_to_maxee_filt'])
         denoise_stats_df["denoise_stats_pooled_mode"] = denoise_stats_str
 
-        # if sample ids were swapped during the run, we need to swap the sample ids back
-        if 'original_sample_id' in denoise_stats_df.columns:
-
-            id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
-            denoise_stats_df.index = denoise_stats_df['original_sample_id']
-            denoise_stats_df.index.name = 'sample-id'
-            denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
-            table.update_ids(id_map_dict, axis='sample', inplace=True)
+        # Restore the original IDs in both statistics and the feature table.
+        id_map_dict = denoise_stats_df['original_sample_id'].to_dict()
+        denoise_stats_df.index = denoise_stats_df['original_sample_id']
+        denoise_stats_df.index.name = 'sample-id'
+        denoise_stats_df.drop(columns=['original_sample_id'], inplace=True)
+        table.update_ids(id_map_dict, axis='sample', inplace=True)
 
         denoise_stats_df.fillna(0, inplace=True)
 

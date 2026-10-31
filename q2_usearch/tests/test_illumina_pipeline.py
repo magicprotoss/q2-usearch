@@ -1,5 +1,9 @@
 """Regression coverage for Illumina filtering, features and statistics."""
 
+import csv
+import gzip
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -253,3 +257,159 @@ def test_nonempty_malformed_fasta_retains_parser_error(tmp_path):
 
     with pytest.raises(pipeline.skbio.io.FASTAFormatError):
         pipeline._split_zotu_chimera(str(tmp_path), verbose=False)
+
+
+@pytest.mark.parametrize('debug', [False, True], ids=['seqkit', 'skbio'])
+@pytest.mark.parametrize('sample_ids', [
+    ['sample_a', 'sample_b', 'safe123'],
+    ['0001', '1', '01'],
+    ['NA', 'NULL', 'nan'],
+    ['sample.a#one', 'sample-b', '样本'],
+    ['S2', 'S1', 'S3'],
+], ids=['safe', 'numeric', 'na-like', 'special', 'temporary-like'])
+def test_pooling_always_uses_temporary_ids_and_preserves_originals(
+        tmp_path, monkeypatch, debug, sample_ids):
+    input_dir = tmp_path / 'input'
+    work_dir = tmp_path / 'work'
+    input_dir.mkdir()
+    work_dir.mkdir()
+    # The third sample is blank; its mapping and zero count must survive.
+    records = [
+        [('old-a', 'ACGT', 'I?5!'), ('old-b', 'TGCA', '!5?I')],
+        [('old-c', 'AGCT', '5678')],
+        [],
+    ]
+    originals = {}
+    with (input_dir / 'MANIFEST').open('w', newline='') as handle:
+        writer = csv.writer(handle)
+        writer.writerow(['sample-id', 'filename', 'direction'])
+        for number, (sample_id, reads) in enumerate(zip(sample_ids, records)):
+            filename = f'input-{number}.fastq.gz'
+            fastq = ''.join(f'@{rid} annotation\n{seq}\n+\n{qual}\n'
+                            for rid, seq, qual in reads)
+            with gzip.open(input_dir / filename, 'wt') as fastq_handle:
+                fastq_handle.write(fastq)
+            originals[filename] = (input_dir / filename).read_bytes()
+            writer.writerow([sample_id, filename, 'forward'])
+    (input_dir / 'metadata.yml').write_text('phred-offset: 33\n')
+    commands = []
+
+    def fake_seqkit(cmd, verbose=False):
+        commands.append(cmd)
+        assert cmd[0] == 'seqkit'
+        output = Path(cmd[cmd.index('-o') + 1])
+        if cmd[1] == 'replace':
+            input_path = Path(cmd[cmd.index('-i') + 1])
+            replacement = cmd[cmd.index('-r') + 1]
+            with gzip.open(input_path, 'rt') as handle:
+                lines = handle.read().splitlines()
+            for number, start in enumerate(range(0, len(lines), 4), 1):
+                lines[start] = '@' + replacement.replace('{nr}', str(number))
+            output.write_text('\n'.join(lines) + ('\n' if lines else ''))
+        else:
+            assert cmd[1] == 'stats'
+            with gzip.open(cmd[3], 'rt') as handle:
+                count = len(handle.read().splitlines()) // 4
+            pd.DataFrame({'num_seqs': [count]}).to_csv(
+                output, sep='\t', index=False)
+        return []
+
+    monkeypatch.setattr(pipeline, 'py_to_cli_interface', fake_seqkit)
+
+    stats = pipeline._pool_samples(str(input_dir), str(work_dir),
+                                   debug=debug, verbose=False)
+
+    assert stats.index.name == 'sample-id'
+    assert stats.index.tolist() == ['S1', 'S2', 'S3']
+    assert stats['original_sample_id'].tolist() == sample_ids
+    assert stats['prior_to_maxee_filt'].tolist() == [2, 1, 0]
+    assert 'fixed_sample_id' not in stats.columns
+    pooled_reads = list(pipeline.skbio.io.read(
+        str(work_dir / 'merged.fastq'), format='fastq',
+        variant='illumina1.8'))
+    assert [read.metadata['id'] for read in pooled_reads] == [
+        'S1.1', 'S1.2', 'S2.1']
+    expected_reads = [read for sample_reads in records for read in sample_reads]
+    assert [str(read) for read in pooled_reads] == [
+        sequence for _, sequence, _ in expected_reads]
+    for actual, (_, _, quality) in zip(pooled_reads, expected_reads):
+        np.testing.assert_array_equal(
+            actual.positional_metadata['quality'].to_numpy(),
+            [ord(character) - 33 for character in quality])
+    for filename, contents in originals.items():
+        assert (input_dir / filename).read_bytes() == contents
+    if debug:
+        assert commands == []
+    else:
+        assert len(commands) == 6
+        assert [cmd[cmd.index('-r') + 1] for cmd in commands
+                if cmd[1] == 'replace'] == [
+                    'S1.{nr}', 'S2.{nr}', 'S3.{nr}']
+
+
+@pytest.mark.parametrize('action_name,use_vsearch', [
+    ('denoise_no_primer_pooled', False),
+    ('cluster_no_primer_pooled', False),
+    ('denoise_then_cluster_no_primer_pooled', False),
+    ('denoise_no_primer_pooled', True),
+    ('denoise_then_cluster_no_primer_pooled', True),
+])
+def test_all_actions_restore_original_sample_ids_in_table_and_statistics(
+        monkeypatch, action_name, use_vsearch):
+    # Swapping S1/S2 must change labels without swapping the associated data.
+    original_ids = ['S2', 'S1', '0001', 'NA', 'BLANK']
+    temporary_ids = ['S1', 'S2', 'S3', 'S4', 'S5']
+    index = pd.Index(temporary_ids, name='sample-id')
+    input_stats = pd.DataFrame({
+        'prior_to_maxee_filt': [10, 20, 30, 40, 0],
+        'original_sample_id': original_ids,
+    }, index=index)
+    filtered = pd.DataFrame({'reads_passed_filter': [9, 18, 27, 36]},
+                            index=index[:4])
+    table_data = np.array([[5, 6, 7, 8], [0, 1, 2, 3]])
+    table = pipeline.biom.Table(table_data, ['f1', 'f2'], temporary_ids[:4])
+    representatives = pd.Series(['ACGT', 'TGCA'], index=['f1', 'f2'])
+    mapped_column = ('reads_mapped_to_zotus'
+                     if action_name == 'denoise_no_primer_pooled'
+                     else 'reads_mapped_to_otus')
+    mapped = pd.DataFrame({mapped_column: table_data.sum(axis=0)},
+                          index=index[:4])
+    chimeras = pd.DataFrame({'reads_mapped_to_chimeras': [1]}, index=index[1:2])
+    monkeypatch.setattr(pipeline, '_pool_samples',
+                        lambda *args, **kwargs: input_stats.copy())
+    monkeypatch.setattr(pipeline, '_quality_control_cli',
+                        lambda *args, **kwargs: filtered.copy())
+    monkeypatch.setattr(pipeline, '_dereplicate_cli',
+                        lambda *args, **kwargs: (90, 4, 1))
+    monkeypatch.setattr(pipeline, '_unoise_cli',
+                        lambda *args, **kwargs: None)
+    monkeypatch.setattr(pipeline, '_split_zotu_chimera',
+                        lambda *args, **kwargs: (3, 2))
+    monkeypatch.setattr(pipeline, '_uparse_cli',
+                        lambda *args, **kwargs: (2, 0))
+    monkeypatch.setattr(pipeline, '_cluster_zotus_cli',
+                        lambda *args, **kwargs: 2)
+    monkeypatch.setattr(pipeline, '_build_feature_tab_cli',
+                        lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        pipeline, '_prep_results_for_artifact_api',
+        lambda *args, **kwargs: (table.copy(), representatives.copy(),
+                                mapped.copy(), chimeras.copy()))
+    kwargs = {} if action_name == 'cluster_no_primer_pooled' else {
+        'use_vsearch': use_vsearch}
+
+    actual_table, actual_representatives, actual_metadata = getattr(
+        pipeline, action_name)('unused-input', **kwargs)
+
+    assert actual_table.ids(axis='sample').tolist() == original_ids[:4]
+    np.testing.assert_array_equal(actual_table.matrix_data.toarray(), table_data)
+    pd.testing.assert_series_equal(actual_representatives, representatives)
+    stats = actual_metadata.to_dataframe()
+    assert stats.index.tolist() == original_ids
+    assert stats['prior_to_maxee_filt'].tolist() == [10, 20, 30, 40, 0]
+    assert stats.loc[original_ids[:4], mapped_column].tolist() == [5, 7, 9, 11]
+    assert stats.loc['S1', 'reads_mapped_to_chimeras'] == 1
+    assert 'original_sample_id' not in stats.columns
+    assert 'fixed_sample_id' not in stats.columns
+    assert stats.loc['BLANK'].drop('denoise_stats_pooled_mode').eq(0).all()
+    assert 'BLANK' not in actual_table.ids(axis='sample')
